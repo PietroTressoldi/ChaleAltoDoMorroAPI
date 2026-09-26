@@ -1,0 +1,6 @@
+@ChaleAltoDoMorroAPI_HostAddress = http://localhost:5084
+
+GET {{ChaleAltoDoMorroAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
