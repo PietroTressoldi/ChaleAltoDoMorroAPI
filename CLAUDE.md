@@ -92,7 +92,7 @@ docs/               CONTRATO_SITE.md, REGRAS_RESERVA.md, TASKS.md
 ## Comandos úteis
 ```bash
 docker compose up -d                                   # sobe o Postgres
-dotnet user-secrets set "ConnectionStrings:Default" "Host=localhost;Port=5432;Database=chale;Username=chale;Password=..."
+dotnet user-secrets set "ConnectionStrings:Default" "Host=localhost;Port=5432;Database=chale_alto_do_morro;Username=chale_admin;Password=..."
 dotnet ef migrations add NomeDaMigration --project ChaleAltoDoMorroAPI
 dotnet ef database update --project ChaleAltoDoMorroAPI
 dotnet build

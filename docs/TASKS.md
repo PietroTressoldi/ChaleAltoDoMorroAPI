@@ -9,7 +9,7 @@ Armadilhas**. Os critérios de aceite são o "pronto": se todos batem, a task es
 Referências: `docs/CONTRATO_SITE.md` (o que o site espera) e `docs/REGRAS_RESERVA.md` (regras + casos de teste).
 
 ## Progresso
-- [ ] 0 — Arrumar a casa
+- [x] 0 — Arrumar a casa
 - [ ] 1 — Entidades, DbContext e primeira migration
 - [ ] 2 — Seed de desenvolvimento
 - [ ] 3 — Rotas públicas de leitura (e ligar o site na API)
@@ -38,7 +38,7 @@ instalados, segredos fora do git e uma rota de saúde.
 2. Apague `WeatherForecast.cs` e `Controllers/WeatherForecastController.cs`.
 3. Crie as pastas vazias da estrutura (ver `CLAUDE.md`): `Domain`, `Data`, `Dtos`, `Services`, `Storage`.
 4. Crie `docker-compose.yml` na **raiz da solution** com um serviço `postgres` (imagem `postgres:17`), usuário,
-   senha e banco `chale`, porta `5432:5432` e um **volume nomeado** para os dados.
+   senha e banco (aqui: usuário `chale_admin`, banco `chale_alto_do_morro`), porta `5432:5432` e um **volume nomeado** para os dados.
 5. Instale os pacotes (versão **10.x** mais recente de cada):
    - `Npgsql.EntityFrameworkCore.PostgreSQL`
    - `Microsoft.EntityFrameworkCore.Design`
@@ -60,11 +60,11 @@ instalados, segredos fora do git e uma rota de saúde.
   `app.Use.../app.Map...` (pipeline HTTP) depois.
 
 **Critérios de aceite**
-- [ ] `docker compose up -d` sobe o Postgres, e `docker ps` mostra o container saudável.
-- [ ] Nenhuma senha ou connection string em `appsettings*.json` nem no git.
-- [ ] `dotnet run` → `http://localhost:5084/health` devolve `{"status":"ok"}`.
-- [ ] `http://localhost:5084/scalar` abre a documentação.
-- [ ] Nenhum vestígio do WeatherForecast. `dotnet build` sem warnings novos.
+- [x] `docker compose up -d` sobe o Postgres, e `docker ps` mostra o container saudável.
+- [x] Nenhuma senha ou connection string em `appsettings*.json` nem no git.
+- [x] `dotnet run` → `http://localhost:5084/health` devolve `{"status":"ok"}`.
+- [x] `http://localhost:5084/scalar` abre a documentação.
+- [x] Nenhum vestígio do WeatherForecast. `dotnet build` sem warnings novos.
 
 **Como testar:** navegador ou o arquivo `ChaleAltoDoMorroAPI.http` do Visual Studio (atualize-o para chamar `/health`).
 
