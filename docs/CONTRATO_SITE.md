@@ -1,0 +1,214 @@
+# Contrato da API com o site
+
+Este é o formato que a **landing page já espera**. O site está pronto: quando `VITE_API_URL` aponta para esta
+API, ele passa a ler estas rotas no lugar dos dados de exemplo. **Qualquer diferença de nome, tipo ou formato
+quebra o site.**
+
+> Fonte original (manter em sincronia): `D:\Desenvolvimento\ChaleAltoDoMorroLandingPage\docs\API.md` e
+> `src/types/index.ts`. Se algo mudar aqui, mudar lá também.
+
+## Convenções
+
+| Assunto | Regra | No .NET |
+|---|---|---|
+| Nomes | **camelCase** | padrão do `System.Text.Json` no ASP.NET Core |
+| Datas sem hora | `"AAAA-MM-DD"` | `DateOnly` (já serializa assim) |
+| Dinheiro | número (`790`, `894.5`) | `decimal`; no Postgres `numeric(10,2)` |
+| Enums | texto (`"weekday"`, `"portrait"`) | `JsonStringEnumConverter` com política camelCase |
+| Campos opcionais | podem ser **omitidos** ou `null` | recomendado: `DefaultIgnoreCondition = WhenWritingNull` |
+| URLs de imagem/vídeo | **absolutas** (`https://...`) | montar com a URL base da API/CDN |
+| Listas | já ordenadas por `order` | `OrderBy(x => x.Order)` |
+| Ids | string | `Guid` serializa como string, ok |
+| Autenticação | rotas públicas **sem** auth | `[AllowAnonymous]` / sem `[Authorize]` |
+| CORS | liberar o domínio do site (dev: `http://localhost:5173`) | `AddCors` + `UseCors` |
+| Erros | status HTTP adequado. Se uma rota de leitura falhar, a seção correspondente some do site | ProblemDetails |
+
+Todas as rotas de leitura devolvem um **array JSON direto** (sem envelope `{ data: ... }`).
+
+---
+
+## Rotas públicas de leitura
+
+### `GET /api/pricing` — preço por tipo de diária
+Sem preço de `weekday` o site não consegue orçar e mostra só o botão do WhatsApp.
+
+```json
+[
+  { "kind": "weekday", "label": "Diária durante a semana", "pricePerNight": 790 },
+  { "kind": "weekend", "label": "Fim de semana (sex e sáb)", "pricePerNight": 894.5, "minNights": 2 }
+]
+```
+
+| Campo | Tipo | Obrig. | Observação |
+|---|---|---|---|
+| `kind` | `"weekday"` \| `"weekend"` | sim | Fim de semana = noites de **sexta e sábado** |
+| `label` | string | sim | Texto livre |
+| `pricePerNight` | number | sim | Valor de cada diária. No portal, o fim de semana pode ser digitado como total ("R$ 1.789 pelas 2 diárias") e gravado como `total ÷ minNights` |
+| `minNights` | number | não | Só no `weekend`. Mínimo de diárias quando a estadia tem sexta ou sábado. Padrão 2 |
+
+### `GET /api/blocked-dates` — noites indisponíveis
+Inclui bloqueios manuais **e** as noites das pré-reservas **confirmadas**.
+
+```json
+[{ "date": "2026-10-03", "reason": "Reservado" }]
+```
+
+| Campo | Tipo | Obrig. | Observação |
+|---|---|---|---|
+| `date` | `"AAAA-MM-DD"` | sim | A **noite** bloqueada: não dá para dormir nela, mas dá para fazer check-out nesse dia |
+| `reason` | string | não | Não é exibido ao visitante. **Não colocar nome de hóspede aqui** (a rota é pública) |
+
+Retornar só datas de **hoje em diante** (o site não precisa do passado).
+
+### `GET /api/packages` — pacotes especiais
+Normalmente um feriado emendado com o fim de semana. **Vendido fechado**: o visitante só reserva todas as
+diárias, pelo preço total. No calendário, clicar numa noite do pacote seleciona o pacote inteiro.
+
+```json
+[
+  {
+    "id": "5f0c...",
+    "name": "Feriadão de Finados",
+    "description": "Três noites para emendar o feriado.",
+    "checkIn": "2026-10-30",
+    "checkOut": "2026-11-02",
+    "price": 2490
+  }
+]
+```
+
+| Campo | Tipo | Obrig. | Observação |
+|---|---|---|---|
+| `id` | string | sim | |
+| `name` | string | sim | |
+| `description` | string | sim | Pode ser `""` |
+| `checkIn` | `"AAAA-MM-DD"` | sim | Dia de entrada; a primeira diária é a noite deste dia |
+| `checkOut` | `"AAAA-MM-DD"` | sim | Dia de saída; a última diária é a noite anterior (30/10 → 02/11 = 3 diárias) |
+| `price` | number | sim | Preço **total** do pacote |
+
+Pacotes não podem se sobrepor. Retornar só pacotes com `checkOut` depois de hoje.
+
+### `GET /api/extras` — kits especiais
+Aparecem no formulário, na seção "Torne a noite inesquecível".
+
+```json
+[
+  {
+    "id": "8a1b...",
+    "name": "Kit Toque de Romance",
+    "price": 179,
+    "items": ["Espumante nacional Brut ou Moscatel (1 garrafa)", "Pétalas de rosa", "Velas decorativas", "Balões de coração"]
+  }
+]
+```
+
+| Campo | Tipo | Obrig. | Observação |
+|---|---|---|---|
+| `id` | string | sim | É o que volta em `extraIds` na pré-reserva |
+| `name` | string | sim | |
+| `price` | number | sim | |
+| `description` | string | não | Texto curto |
+| `items` | string[] | não | Lista do que vem no kit |
+
+Só kits **ativos** (o portal pode desativar um kit sem apagar, pois pré-reservas antigas apontam para ele).
+
+### `GET /api/gallery` — fotos da galeria
+
+```json
+[
+  {
+    "id": "b3f1...",
+    "src": "https://api.exemplo.com/uploads/galeria/por-do-sol-1920.webp",
+    "srcSet": "https://api.exemplo.com/uploads/galeria/por-do-sol-640.webp 640w, https://api.exemplo.com/uploads/galeria/por-do-sol-1920.webp 1920w",
+    "alt": "Pôr do sol sobre a Lagoa dos Barros, com vinho no balde de gelo no deck",
+    "order": 0
+  }
+]
+```
+
+| Campo | Tipo | Obrig. | Observação |
+|---|---|---|---|
+| `id` | string | sim | |
+| `src` | string | sim | URL absoluta da maior versão |
+| `srcSet` | string | não | Formato HTML `srcset`: `"url 640w, url 1280w"` |
+| `alt` | string | sim | Descrição da cena (acessibilidade + legenda) |
+| `order` | number | sim | As 8 primeiras aparecem no carrossel |
+
+Lista vazia = a galeria some do site. **Nenhuma foto com hóspedes.**
+
+### `GET /api/videos` — tour em vídeo
+
+```json
+[
+  {
+    "id": "a91e...",
+    "title": "Do dia à noite no Alto do Morro",
+    "description": "A chegada, a vista para a lagoa, a banheira...",
+    "url": "https://www.youtube.com/watch?v=XXXXXXXXXXX",
+    "posterUrl": "https://api.exemplo.com/uploads/videos/tour-capa.webp",
+    "orientation": "portrait",
+    "order": 0
+  }
+]
+```
+
+| Campo | Tipo | Obrig. | Observação |
+|---|---|---|---|
+| `id`, `title`, `url`, `order` | | sim | `url` = link do YouTube (watch, youtu.be, shorts) **ou** `.mp4` direto |
+| `description` | string | não | |
+| `posterUrl` | string | não | Capa. Sem capa e YouTube → o site usa a miniatura do YouTube |
+| `orientation` | `"portrait"` \| `"landscape"` | não | Padrão `landscape`. Vídeo em pé = `portrait` |
+
+Lista vazia = a seção "Tour pelo Chalé" some do site.
+
+---
+
+## Rota pública de escrita
+
+### `POST /api/pre-reservations` — registrar pré-reserva
+O site chama esta rota quando o visitante toca em "Enviar pré-reserva pelo WhatsApp". **O site não espera a
+resposta nem mostra erro**: o WhatsApp é o canal principal. Mesmo assim, a API deve validar tudo e responder
+certo, porque é daqui que o portal lista as pré-reservas pendentes.
+
+Corpo enviado pelo site (exatamente assim):
+```json
+{
+  "checkIn": "2026-10-09",
+  "checkOut": "2026-10-11",
+  "nights": 2,
+  "packageId": null,
+  "extraIds": ["8a1b..."],
+  "estimatedTotal": 1968,
+  "guest": { "name": "Ana Souza", "cpf": "52998224725", "email": null, "phone": "51989098631", "notes": "" },
+  "secondGuest": { "name": "Bruno Lima", "cpf": null }
+}
+```
+
+| Campo | Observação |
+|---|---|
+| `checkIn`, `checkOut` | Validar com as regras de `REGRAS_RESERVA.md` |
+| `nights` | Informativo. Recalcular no servidor |
+| `packageId` | Id do pacote ou `null`. Conferir: se a estadia é um pacote, tem que bater |
+| `extraIds` | Ids dos kits escolhidos (pode ser `[]`). Todos precisam existir e estar ativos |
+| `estimatedTotal` | **Só informativo. Nunca usar como preço.** O total gravado é o recalculado |
+| `guest.name` | Obrigatório, mín. 2 caracteres |
+| `guest.cpf` | Obrigatório, **só dígitos**, CPF válido (dígitos verificadores) |
+| `guest.email` | Opcional (`null`). Se vier, precisa ser e-mail válido |
+| `guest.phone` | Obrigatório, **só dígitos**, 10 ou 11 dígitos (DDD + número, sem +55) |
+| `guest.notes` | Opcional, até 1000 caracteres (pode vir `""`) |
+| `secondGuest` | Opcional (`null`). Se vier: `name` obrigatório; `cpf` opcional, mas válido se vier |
+
+Respostas sugeridas:
+- `201 Created` com `{ "id": "...", "total": 1968, "status": "pending" }` e header `Location`.
+- `400 Bad Request` (ProblemDetails de validação) para campos inválidos.
+- `409 Conflict` quando as datas não estão mais disponíveis (bloqueio, pacote parcial...).
+
+---
+
+## Rotas do portal (autenticadas — desenhadas nas tasks 7 a 10)
+Prefixo `/api/admin/...`, `[Authorize]`, JWT no header `Authorization: Bearer ...`. Não são usadas pelo
+site. O formato fica a critério do dono ao fazer as tasks, seguindo as mesmas convenções acima.
+- `POST /api/auth/login` → `{ "accessToken": "...", "expiresAt": "..." }`
+- Preços, pacotes, kits, bloqueios: CRUD
+- Pré-reservas: listar/filtrar, ver detalhe, confirmar, cancelar
+- Galeria e vídeos: upload, editar texto, reordenar, remover
