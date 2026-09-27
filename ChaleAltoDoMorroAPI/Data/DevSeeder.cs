@@ -45,7 +45,7 @@ public class DevSeeder(AppDbContext db, ILogger log, IClock clock, CancellationT
 
         PricingRule weekendPricingRule = new()
         {
-            Label = "Diária final de semana (sex, sáb, dom)",
+            Label = "Diária final de semana (sex, sáb)",
             Kind = PricingKind.Weekend,
             MinNights = 2,
             PricePerNight = 894.5M

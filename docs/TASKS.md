@@ -12,7 +12,7 @@ Referências: `docs/CONTRATO_SITE.md` (o que o site espera) e `docs/REGRAS_RESER
 - [x] 0 — Arrumar a casa
 - [x] 1 — Entidades, DbContext e primeira migration
 - [x] 2 — Seed de desenvolvimento
-- [ ] 3 — Rotas públicas de leitura (e ligar o site na API)
+- [x] 3 — Rotas públicas de leitura (e ligar o site na API)
 - [ ] 4 — Projeto de testes + BookingRules (TDD)
 - [ ] 5 — POST /api/pre-reservations
 - [ ] 6 — Bloqueios = manuais + reservas confirmadas
@@ -179,12 +179,12 @@ Aqui usamos seed em código porque os bloqueios dependem de "hoje".
 e `ActionResult<T>`; por que CORS só afeta o **navegador** (o Scalar e o `.http` funcionam sem ele).
 
 **Critérios de aceite**
-- [ ] O JSON de cada rota bate campo a campo com `docs/CONTRATO_SITE.md` (conferir camelCase, `"weekday"`,
+- [x] O JSON de cada rota bate campo a campo com `docs/CONTRATO_SITE.md` (conferir camelCase, `"weekday"`,
       datas `"2026-10-03"`, ausência de campos nulos).
-- [ ] O site em `localhost:5173` mostra o calendário com os preços do banco e os 3 kits no formulário,
+- [x] O site em `localhost:5173` mostra o calendário com os preços do banco e os 3 kits no formulário,
       **sem erro de CORS** no console do navegador (F12).
-- [ ] Mudar o preço no banco e recarregar o site muda o valor exibido.
-- [ ] Galeria e vídeos voltam `[]` por enquanto, então essas seções **somem do site**. É esperado até a task 10.
+- [x] Mudar o preço no banco e recarregar o site muda o valor exibido.
+- [x] Galeria e vídeos voltam `[]` por enquanto, então essas seções **somem do site**. É esperado até a task 10.
 
 **Armadilhas:** esquecer `app.UseCors(...)` ou colocar na ordem errada; `DateTime.Today` (fuso do servidor,
 que em produção costuma ser UTC → "hoje" vira amanhã às 21h).
