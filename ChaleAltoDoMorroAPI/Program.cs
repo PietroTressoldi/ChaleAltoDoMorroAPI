@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using ChaleAltoDoMorroAPI.Data;
 using ChaleAltoDoMorroAPI.Global;
 using ChaleAltoDoMorroAPI.Interfaces;
+using ChaleAltoDoMorroAPI.Services;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
@@ -39,6 +40,8 @@ builder.Services.AddCors(options =>
             .WithMethods("GET", "POST")
             .WithHeaders("Content-Type"));
 });
+
+builder.Services.AddScoped<SrvReservation>();
 
 var app = builder.Build();
 

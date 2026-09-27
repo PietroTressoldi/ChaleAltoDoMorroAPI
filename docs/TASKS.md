@@ -14,7 +14,7 @@ Referências: `docs/CONTRATO_SITE.md` (o que o site espera) e `docs/REGRAS_RESER
 - [x] 2 — Seed de desenvolvimento
 - [x] 3 — Rotas públicas de leitura (e ligar o site na API)
 - [x] 4 — Projeto de testes + BookingRules (TDD)
-- [ ] 5 — POST /api/pre-reservations
+- [x] 5 — POST /api/pre-reservations
 - [ ] 6 — Bloqueios = manuais + reservas confirmadas
 - [ ] 7 — Login do portal: Identity + JWT
 - [ ] 8 — Admin: preços, pacotes, kits e bloqueios
@@ -254,13 +254,13 @@ o mínimo de fim de semana; comparar pacote só pelo check-in.
 `ValidationProblemDetails`; por que regra de negócio não mora no controller; injeção do `DbContext` no service.
 
 **Critérios de aceite**
-- [ ] O `POST` do corpo de exemplo do contrato (com datas futuras e ids reais de kit) → `201` e o registro no banco
+- [x] O `POST` do corpo de exemplo do contrato (com datas futuras e ids reais de kit) → `201` e o registro no banco
       com total recalculado.
-- [ ] CPF inválido, telefone com 9 dígitos, e-mail `ana@`, CPF do hóspede 2 sem nome → `400` com o campo apontado.
-- [ ] Sexta → sábado (1 diária), noite bloqueada, pacote parcial → `409`/`422` com motivo claro.
-- [ ] `estimatedTotal` adulterado (ex.: 1) **não** muda o total gravado.
-- [ ] Teste real: fazer uma pré-reserva pelo site e ver a linha nova no banco.
-- [ ] Nenhum CPF/telefone/e-mail aparece em log.
+- [x] CPF inválido, telefone com 9 dígitos, e-mail `ana@`, CPF do hóspede 2 sem nome → `400` com o campo apontado.
+- [x] Sexta → sábado (1 diária), noite bloqueada, pacote parcial → `409`/`422` com motivo claro.
+- [x] `estimatedTotal` adulterado (ex.: 1) **não** muda o total gravado.
+- [x] Teste real: fazer uma pré-reserva pelo site e ver a linha nova no banco.
+- [x] Nenhum CPF/telefone/e-mail aparece em log.
 
 ---
 

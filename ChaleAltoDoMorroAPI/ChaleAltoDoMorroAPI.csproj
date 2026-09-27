@@ -22,7 +22,6 @@
 
   <ItemGroup>
     <Folder Include="Storage\" />
-    <Folder Include="Services\" />
   </ItemGroup>
 
 </Project>
