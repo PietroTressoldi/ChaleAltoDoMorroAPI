@@ -59,6 +59,8 @@ ChaleAltoDoMorroAPI/
   Dtos/             contratos de entrada/saída (nunca expor entidade direto)
   Services/         casos de uso que juntam banco + regras (ex.: ReservationService)
   Storage/          IFileStorage, LocalFileStorage
+  Interfaces/       interfaces de serviços transversais (ex.: IClock)
+  Global/           implementações transversais (ex.: BrazilClock — "hoje" no fuso de Brasília)
 ChaleAltoDoMorroAPI.Tests/   xUnit — principalmente BookingRules e validação de CPF
 docs/               CONTRATO_SITE.md, REGRAS_RESERVA.md, TASKS.md
 ```

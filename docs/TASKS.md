@@ -11,7 +11,7 @@ Referências: `docs/CONTRATO_SITE.md` (o que o site espera) e `docs/REGRAS_RESER
 ## Progresso
 - [x] 0 — Arrumar a casa
 - [x] 1 — Entidades, DbContext e primeira migration
-- [ ] 2 — Seed de desenvolvimento
+- [x] 2 — Seed de desenvolvimento
 - [ ] 3 — Rotas públicas de leitura (e ligar o site na API)
 - [ ] 4 — Projeto de testes + BookingRules (TDD)
 - [ ] 5 — POST /api/pre-reservations
@@ -150,8 +150,8 @@ precisa criar um escopo); diferença entre `HasData` (vai para a migration) e se
 Aqui usamos seed em código porque os bloqueios dependem de "hoje".
 
 **Critérios de aceite**
-- [ ] Banco vazio + `dotnet run` → dados inseridos. Rodar de novo não duplica nada.
-- [ ] Em Production o seeder não roda.
+- [x] Banco vazio + `dotnet run` → dados inseridos. Rodar de novo não duplica nada.
+- [x] Em Production o seeder não roda.
 
 ---
 
