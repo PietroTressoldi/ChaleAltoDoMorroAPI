@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: chale_dev
       POSTGRES_DB: chale_alto_do_morro
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - chale-pgdata:/var/lib/postgresql/data
     healthcheck:

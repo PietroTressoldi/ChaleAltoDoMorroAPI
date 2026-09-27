@@ -57,7 +57,7 @@ ChaleAltoDoMorroAPI/
   Domain/           entidades + BookingRules (regras de reserva PURAS, sem EF, sem HTTP)
   Data/             AppDbContext, Configurations/ (IEntityTypeConfiguration), Migrations/, Seed
   Dtos/             contratos de entrada/saída (nunca expor entidade direto)
-  Services/         casos de uso que juntam banco + regras (ex.: PreReservationService)
+  Services/         casos de uso que juntam banco + regras (ex.: ReservationService)
   Storage/          IFileStorage, LocalFileStorage
 ChaleAltoDoMorroAPI.Tests/   xUnit — principalmente BookingRules e validação de CPF
 docs/               CONTRATO_SITE.md, REGRAS_RESERVA.md, TASKS.md
@@ -92,7 +92,7 @@ docs/               CONTRATO_SITE.md, REGRAS_RESERVA.md, TASKS.md
 ## Comandos úteis
 ```bash
 docker compose up -d                                   # sobe o Postgres
-dotnet user-secrets set "ConnectionStrings:Default" "Host=localhost;Port=5432;Database=chale_alto_do_morro;Username=chale_admin;Password=..."
+dotnet user-secrets set "ConnectionStrings:Default" "Host=localhost;Port=5433;Database=chale_alto_do_morro;Username=chale_admin;Password=..."
 dotnet ef migrations add NomeDaMigration --project ChaleAltoDoMorroAPI
 dotnet ef database update --project ChaleAltoDoMorroAPI
 dotnet build

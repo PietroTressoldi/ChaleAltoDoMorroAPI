@@ -10,7 +10,7 @@ Referências: `docs/CONTRATO_SITE.md` (o que o site espera) e `docs/REGRAS_RESER
 
 ## Progresso
 - [x] 0 — Arrumar a casa
-- [ ] 1 — Entidades, DbContext e primeira migration
+- [x] 1 — Entidades, DbContext e primeira migration
 - [ ] 2 — Seed de desenvolvimento
 - [ ] 3 — Rotas públicas de leitura (e ligar o site na API)
 - [ ] 4 — Projeto de testes + BookingRules (TDD)
@@ -38,7 +38,7 @@ instalados, segredos fora do git e uma rota de saúde.
 2. Apague `WeatherForecast.cs` e `Controllers/WeatherForecastController.cs`.
 3. Crie as pastas vazias da estrutura (ver `CLAUDE.md`): `Domain`, `Data`, `Dtos`, `Services`, `Storage`.
 4. Crie `docker-compose.yml` na **raiz da solution** com um serviço `postgres` (imagem `postgres:17`), usuário,
-   senha e banco (aqui: usuário `chale_admin`, banco `chale_alto_do_morro`), porta `5432:5432` e um **volume nomeado** para os dados.
+   senha e banco (aqui: usuário `chale_admin`, banco `chale_alto_do_morro`), porta `5433:5432` (a 5432 do Windows é de um Postgres instalado localmente) e um **volume nomeado** para os dados.
 5. Instale os pacotes (versão **10.x** mais recente de cada):
    - `Npgsql.EntityFrameworkCore.PostgreSQL`
    - `Microsoft.EntityFrameworkCore.Design`
@@ -88,12 +88,19 @@ instalados, segredos fora do git e uma rota de saúde.
    - `Extra` (kit): `Id` (Guid), `Name`, `Description` (string?), `Price`, `Items` (`List<string>`), `IsActive`, `Order`.
    - `GalleryImage`: `Id`, `Src`, `SrcSet` (string?), `Alt`, `Order`.
    - `TourVideo`: `Id`, `Title`, `Description?`, `Url`, `PosterUrl?`, `Orientation` (enum `Portrait/Landscape`), `Order`.
-   - `PreReservation`: `Id`, `CheckIn`, `CheckOut`, `Nights`, `PackageId?` + `PackageName?` (cópia do nome),
+   - `Reservation` (a "pré-reserva" é só o status `Pending`): `Id`, `CheckIn`, `CheckOut`, `Nights`, `PackageId?` + `PackageName?` (cópia do nome),
      `NightsTotal`, `ExtrasTotal`, `Total`, `EstimatedTotalFromSite`, `IncludesColonialBreakfast`,
      `Status` (enum `Pending/Confirmed/Cancelled`), `CreatedAt`, `ConfirmedAt?`, `CancelledAt?`,
      hóspede 1 (`Name`, `Cpf`, `Email?`, `Phone`, `Notes`) e hóspede 2 (`Name?`, `Cpf?`).
      Dica: hóspede como **owned type** (`OwnsOne`) deixa a entidade organizada.
-   - `PreReservationExtra`: `PreReservationId`, `ExtraId`, `Name`, `Price` — **cópia** do kit no momento da reserva.
+   - **Um kit por reserva** (decisão do dono): a `Reservation` guarda `KitId?`, `KitName?` e `KitPrice?` — **cópia** do kit
+     no momento da reserva. O catálogo de kits é a entidade `Kit` (acima, `Extra`). ⚠️ O site hoje manda `extraIds` (lista):
+     ajustar contrato + landing para aceitar só um kit.
+   - **Hóspedes em tabela própria `guests`** (decisão do dono, para a lista de hóspedes do portal): `Guest` com `Id`,
+     `Name`, `Cpf?` (único; aceita vários NULL), `PhoneNumber?`, `Email?`. A `Reservation` tem `Guest1Id` (obrigatório) e
+     `Guest2Id?`, mais `ContactPhone`/`ContactEmail?` (snapshot do formulário). Regra da task 5: CPF já cadastrado →
+     só liga a reserva ao hóspede existente, **nunca sobrescreve** o cadastro pela rota pública. Hóspede 2 sem CPF →
+     cadastro novo a cada reserva.
 2. Em `Data/`, crie `AppDbContext : IdentityDbContext<IdentityUser>` (já pensando na task 7) com os `DbSet`s.
 3. Uma classe `IEntityTypeConfiguration<T>` por entidade em `Data/Configurations/`, aplicadas com
    `ApplyConfigurationsFromAssembly`. Nelas: tamanhos máximos de string, `HasPrecision(10, 2)` nos decimais,
@@ -108,10 +115,10 @@ instalados, segredos fora do git e uma rota de saúde.
 - Por que `CreatedAt` deve ser `DateTimeOffset` (ou `DateTime` UTC): o Npgsql exige UTC em `timestamptz`.
 
 **Critérios de aceite**
-- [ ] Migration `Inicial` criada e aplicada. As tabelas aparecem no banco (pgAdmin, DBeaver ou `psql`).
-- [ ] Nenhum `decimal` sem precisão, nenhum enum salvo como número, `Kind` e `Date` com índice único.
-- [ ] `Items` do kit é `text[]`; datas são `date`.
-- [ ] Entidades sem atributos de EF espalhados (configuração fica nas classes de `Configurations/`).
+- [x] Migration `Inicial` criada e aplicada. As tabelas aparecem no banco (pgAdmin, DBeaver ou `psql`).
+- [x] Nenhum `decimal` sem precisão, nenhum enum salvo como número, `Kind` e `Date` com índice único.
+- [x] `Items` do kit é `text[]`; datas são `date`.
+- [x] Entidades sem atributos de EF espalhados (configuração fica nas classes de `Configurations/`).
 
 **Armadilhas**
 - `DateTime` no lugar de `DateOnly` traz fuso para uma data que não tem fuso: bug clássico de "dia anterior".
@@ -229,9 +236,9 @@ o mínimo de fim de semana; comparar pacote só pelo check-in.
    Validação de formato com **DataAnnotations** (`[Required]`, `[StringLength]`, `[EmailAddress]`, regex de
    dígitos) + um atributo de validação próprio `[Cpf]` que usa o `CpfValidator` da task 4.
    Regra condicional (CPF do hóspede 2 exige nome): `IValidatableObject` ou validação no service.
-2. `Services/PreReservationService`: carrega do banco os dados de reserva (preços, bloqueios **de hoje em
+2. `Services/ReservationService`: carrega do banco os dados de reserva (preços, bloqueios **de hoje em
    diante**, pacotes, kits pedidos), chama `ValidateStay` e `Quote`, confere `packageId` e `extraIds`, e grava
-   a `PreReservation` + `PreReservationExtra`s com status `Pending`.
+   a `Reservation` + `ReservationExtra`s com status `Pending`.
 3. Controller fino: chama o service e traduz o resultado em HTTP:
    - sucesso → `201 Created` com `{ id, total, status }` (use `CreatedAtAction` apontando para o GET do admin da
      task 9, ou só `Created` por enquanto);
