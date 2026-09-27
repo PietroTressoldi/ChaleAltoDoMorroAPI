@@ -15,7 +15,7 @@ Referências: `docs/CONTRATO_SITE.md` (o que o site espera) e `docs/REGRAS_RESER
 - [x] 3 — Rotas públicas de leitura (e ligar o site na API)
 - [x] 4 — Projeto de testes + BookingRules (TDD)
 - [x] 5 — POST /api/pre-reservations
-- [ ] 6 — Bloqueios = manuais + reservas confirmadas
+- [x] 6 — Bloqueios = manuais + reservas confirmadas
 - [ ] 7 — Login do portal: Identity + JWT
 - [ ] 8 — Admin: preços, pacotes, kits e bloqueios
 - [ ] 9 — Admin: gestão das pré-reservas
@@ -276,13 +276,13 @@ lembrar de apagar os bloqueios: fonte de bug. Calcular na hora mantém uma únic
 1. Crie um serviço de disponibilidade (ex.: `AvailabilityService.GetUnavailableNightsAsync(from)`) que une:
    bloqueios manuais + cada noite de cada reserva `Confirmed` que termina depois de hoje.
 2. Use esse serviço **no `GET` público** e também na **validação da pré-reserva** (task 5) e na confirmação (task 9).
-3. No retorno público, reservas saem com `reason: "Reservado"` (nunca o nome do hóspede).
+3. No retorno público **não sai `reason`** (nem de bloqueio manual, nem de reserva): a rota é pública e o contrato marca o campo como opcional. Nunca expor nome de hóspede.
 4. Sem datas repetidas (se um bloqueio manual coincide com uma reserva, sai uma vez só) e ordenado por data.
 
 **Critérios de aceite**
-- [ ] Confirmar uma pré-reserva direto no banco (`status = 'Confirmed'`) faz as noites aparecerem riscadas no calendário do site.
-- [ ] O dia do check-out da reserva **não** aparece bloqueado.
-- [ ] Testes unitários para a expansão "reserva → noites" (pode ficar na classe pura).
+- [x] Confirmar uma pré-reserva direto no banco (`status = 'Confirmed'`) faz as noites aparecerem riscadas no calendário do site.
+- [x] O dia do check-out da reserva **não** aparece bloqueado.
+- [x] Testes unitários para a expansão "reserva → noites" (pode ficar na classe pura).
 
 ---
 
@@ -360,6 +360,8 @@ do banco (sobreposição) fica no service, não em atributo.
 5. **Concorrência**: dois cliques em "confirmar" em reservas diferentes com as mesmas noites não podem ambos
    passar. Use uma transação com nível de isolamento adequado e revalidação dentro dela. (Bônus avançado:
    constraint de exclusão do Postgres com `daterange`.)
+6. **Planejado (opcional, ver "Ideias para o futuro"):** opção "check-out bloqueia a data", global e/ou por reserva.
+   Se entrar junto com esta task, a tela de confirmação mostra a opção e a revalidação já considera a noite extra.
 
 **Conceitos novos:** paginação; máquina de estados simples (quais transições são permitidas); transações no
 EF Core (`Database.BeginTransactionAsync`); condição de corrida.
@@ -429,3 +431,15 @@ EF Core (`Database.BeginTransactionAsync`); condição de corrida.
 **Critérios de aceite**
 - [ ] `docker build` + `docker run` com variáveis de ambiente sobe a API conectada a um Postgres.
 - [ ] Nenhum segredo na imagem.
+
+---
+
+## Ideias para o futuro (fora do escopo atual)
+
+- **"Check-out bloqueia a data"** (folga entre hóspedes: limpeza, preparar a cesta). Opção configurável no portal:
+  - **global**: um valor de "noites de folga após cada reserva" (0 = padrão atual; 1 = a noite do check-out fica bloqueada),
+    guardado no banco como os preços e o mínimo de diárias;
+  - **por reserva**: um campo na reserva que sobrescreve o valor global (ex.: reserva com decoração especial).
+  - Impacto: só a expansão "reserva → noites" (função pura do `Domain`, task 6) muda, e o teste que garante que o dia do
+    check-out não fica bloqueado passa a depender da configuração. Validação da pré-reserva, `GET /api/blocked-dates` e
+    confirmação (task 9) herdam a regra, porque todos usam o mesmo serviço de disponibilidade.

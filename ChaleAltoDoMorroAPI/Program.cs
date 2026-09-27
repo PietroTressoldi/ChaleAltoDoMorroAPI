@@ -42,6 +42,7 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddScoped<SrvReservation>();
+builder.Services.AddScoped<SrvAvailability>();
 
 var app = builder.Build();
 

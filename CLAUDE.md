@@ -89,6 +89,9 @@ docs/               CONTRATO_SITE.md, REGRAS_RESERVA.md, TASKS.md
 - Kits românticos (Toque de Romance R$ 179, Eu Te Amo R$ 279, Noite Especial R$ 390) são adicionais opcionais.
 - Pré-reserva: hóspede 1 (nome, CPF, telefone obrigatórios; e-mail opcional) + hóspede 2 opcional.
   Nasce **pendente**. A confirmação é manual, no portal; o WhatsApp é o canal principal com o cliente.
+- Noites ocupadas por reserva = `[checkIn, checkOut)`: o dia do check-out fica livre para outro check-in.
+  **Planejado para o portal:** opção "check-out bloqueia a data" (folga entre hóspedes), global e/ou por reserva.
+  Só muda a expansão `BookingRules.Nights` / `SrvAvailability` (detalhes em `docs/TASKS.md`, "Ideias para o futuro").
 - **Nenhuma foto/vídeo com hóspedes** na galeria (lembrar no upload do portal).
 
 ## Comandos úteis

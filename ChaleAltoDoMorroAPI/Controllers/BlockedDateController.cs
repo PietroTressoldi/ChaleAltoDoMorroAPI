@@ -1,6 +1,7 @@
 using ChaleAltoDoMorroAPI.Data;
 using ChaleAltoDoMorroAPI.Dtos;
 using ChaleAltoDoMorroAPI.Interfaces;
+using ChaleAltoDoMorroAPI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,21 +9,15 @@ namespace ChaleAltoDoMorroAPI.Controllers;
 
 [Route("api/blocked-dates")]
 [ApiController]
-public class BlockedDateController(AppDbContext db, IClock clock) : ControllerBase
+public class BlockedDateController(SrvAvailability srvAvailability) : ControllerBase
 {
     // O "reason" do banco não sai daqui: a rota é pública e o motivo pode ter anotação interna.
     [HttpGet]
-    public async Task<ActionResult<List<BlockedDateDto>>> GetUpcomingBlockedDates(CancellationToken ct)
+    public async Task<ActionResult<List<BlockedDateDto>>> GetUpcomingBlockedDates(CancellationToken ct = default)
     {
-        var today = clock.Today();
+        var unavailableNights = await srvAvailability.GetUnavailableNights(ct);
+        var response = unavailableNights.Select(n => new BlockedDateDto(n)).ToList();
 
-        var blockedDates = await db.BlockedDates
-            .AsNoTracking()
-            .Where(b => b.Date >= today)
-            .OrderBy(b => b.Date)
-            .Select(b => new BlockedDateDto(b.Date))
-            .ToListAsync(ct);
-
-        return Ok(blockedDates);
+        return Ok(response);
     }
 }

@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ChaleAltoDoMorroAPI.Services;
 
-public class SrvReservation(AppDbContext db, IClock brazilClock, TimeProvider timeProvider, ILogger<SrvReservation> log)
+public class SrvReservation(AppDbContext db, SrvAvailability srvAvailability, IClock brazilClock, TimeProvider timeProvider, ILogger<SrvReservation> log)
 {
 
     public async Task<PreReservationResponse> CreatePreReservation(PostPreReservationRequest request, CancellationToken ct = default)
@@ -24,7 +24,7 @@ public class SrvReservation(AppDbContext db, IClock brazilClock, TimeProvider ti
         if (validateRequestPackageResponse.ErrorResponse != null)
             return validateRequestPackageResponse.ErrorResponse;
 
-        var validateRequestKitResponse = await ValidateRequestKit(request);
+        var validateRequestKitResponse = await ValidateRequestKit(request, ct);
 
         if (validateRequestKitResponse.ErrorResponse != null)
             return validateRequestKitResponse.ErrorResponse;
@@ -38,7 +38,7 @@ public class SrvReservation(AppDbContext db, IClock brazilClock, TimeProvider ti
         if (requestPrices is null)
             return new PricingNotConfigured();
 
-        var mainGuest = await GetOrAddGuest(request.Guest.Name, request.Guest.Cpf, request.Guest.Phone, request.Guest.Email);
+        var mainGuest = await GetOrAddGuest(request.Guest.Name, request.Guest.Cpf, request.Guest.Phone, request.Guest.Email, ct);
         Guest? secondGuest = null;
 
         var requestSecondGuest = request.SecondGuest;
@@ -47,10 +47,10 @@ public class SrvReservation(AppDbContext db, IClock brazilClock, TimeProvider ti
             // Mesmo CPF dos dois hóspedes: reaproveita o cadastro (o hóspede 1 pode ainda não estar salvo no banco).
             secondGuest = requestSecondGuest.Cpf != null && requestSecondGuest.Cpf == mainGuest.Cpf
                 ? mainGuest
-                : await GetOrAddGuest(requestSecondGuest.Name, requestSecondGuest.Cpf, phone: null, email: null);
+                : await GetOrAddGuest(requestSecondGuest.Name, requestSecondGuest.Cpf, phone: null, email: null, ct);
         }
 
-        var reservationId = await AddReservation(requestPrices, validateRequestPackageResponse.package, kit, mainGuest, secondGuest, request);
+        var reservationId = await AddReservation(requestPrices, validateRequestPackageResponse.package, kit, mainGuest, secondGuest, request, ct);
 
         if (request.EstimatedTotal is { } estimatedTotal && estimatedTotal != requestPrices.Total)
         {
@@ -63,7 +63,7 @@ public class SrvReservation(AppDbContext db, IClock brazilClock, TimeProvider ti
         return new Created(reservationId, requestPrices.Total);
     }
 
-    private async Task<Guid> AddReservation(StayQuote bookingQuote, PackageInfo? package, Kit? kit, Guest mainGuest, Guest? secondGuest, PostPreReservationRequest request)
+    private async Task<Guid> AddReservation(StayQuote bookingQuote, PackageInfo? package, Kit? kit, Guest mainGuest, Guest? secondGuest, PostPreReservationRequest request, CancellationToken ct = default)
     {
         Reservation reservation = new()
         {
@@ -91,21 +91,21 @@ public class SrvReservation(AppDbContext db, IClock brazilClock, TimeProvider ti
             CreatedAt = timeProvider.GetUtcNow()
         };
 
-        await db.Reservations.AddAsync(reservation);
+        await db.Reservations.AddAsync(reservation, ct);
 
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(ct);
 
         return reservation.Id;
     }
 
     // CPF já cadastrado: devolve o cadastro existente SEM alterar (segurança: a rota é pública).
     // Sem CPF (hóspede 2 opcional): não há como deduplicar, então cria um cadastro novo.
-    private async Task<Guest> GetOrAddGuest(string name, string? cpf, string? phone, string? email)
+    private async Task<Guest> GetOrAddGuest(string name, string? cpf, string? phone, string? email, CancellationToken ct = default)
     {
         if (cpf != null)
         {
             // Com tracking: o EF precisa saber que este hóspede já existe, senão tenta inserir de novo.
-            var guestFromDb = await db.Guests.FirstOrDefaultAsync(g => g.Cpf == cpf);
+            var guestFromDb = await db.Guests.FirstOrDefaultAsync(g => g.Cpf == cpf, ct);
 
             if (guestFromDb != null)
                 return guestFromDb;
@@ -119,20 +119,20 @@ public class SrvReservation(AppDbContext db, IClock brazilClock, TimeProvider ti
             Email = email
         };
 
-        await db.Guests.AddAsync(addGuest);
+        await db.Guests.AddAsync(addGuest, ct);
 
         return addGuest;
     }
 
     //Regras/configurações de hospedagem do banco
-    private async Task<BookingData> GetBookingData()
+    private async Task<BookingData> GetBookingData(CancellationToken ct = default)
     {
         var today = brazilClock.Today();
 
-        var pricingRules = await db.PricingRules.AsNoTracking().ToListAsync();
-        var packageInfo = await db.SpecialPackages.AsNoTracking().Where(p => p.CheckOut > today).Select(p => new PackageInfo(p.Id, p.Name, p.CheckIn, p.CheckOut, p.Price)).ToListAsync();
-        // >= : o bloqueio de HOJE à noite também conta.
-        var blockedNights = await db.BlockedDates.AsNoTracking().Where(b => b.Date >= today).Select(b => b.Date).ToHashSetAsync();
+        var pricingRules = await db.PricingRules.AsNoTracking().ToListAsync(ct);
+        var packageInfo = await db.SpecialPackages.AsNoTracking().Where(p => p.CheckOut > today).Select(p => new PackageInfo(p.Id, p.Name, p.CheckIn, p.CheckOut, p.Price)).ToListAsync(ct);
+        // Bloqueios manuais + reservas confirmadas, incluindo a noite de HOJE.
+        var blockedNights = (await srvAvailability.GetUnavailableNights(ct)).ToHashSet();
 
         // Regra ausente = null: o BookingRules já trata (sem weekend usa o preço de semana; sem weekday não orça).
         var weekdayRule = pricingRules.FirstOrDefault(p => p.Kind == PricingKind.Weekday);
@@ -159,7 +159,7 @@ public class SrvReservation(AppDbContext db, IClock brazilClock, TimeProvider ti
         return (null, requestPackage);
     }
 
-    private async Task<(PreReservationResponse? ErrorResponse, Kit? Kit)> ValidateRequestKit(PostPreReservationRequest request)
+    private async Task<(PreReservationResponse? ErrorResponse, Kit? Kit)> ValidateRequestKit(PostPreReservationRequest request, CancellationToken ct = default)
     {
         if (!request.ExtraIds.Any())
             return (null, null);
@@ -167,7 +167,7 @@ public class SrvReservation(AppDbContext db, IClock brazilClock, TimeProvider ti
         var requestKitId = request.ExtraIds[0];
 
         // Só kit ATIVO: um kit desativado no portal não pode mais ser vendido.
-        var requestKit = await db.Kits.AsNoTracking().Where(k => k.Id == requestKitId && k.IsActive).FirstOrDefaultAsync();
+        var requestKit = await db.Kits.AsNoTracking().Where(k => k.Id == requestKitId && k.IsActive).FirstOrDefaultAsync(ct);
 
         if (requestKit == null)
             return (new KitNotFound(), null);
