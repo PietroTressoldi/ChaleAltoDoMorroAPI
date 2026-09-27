@@ -123,6 +123,10 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddScoped<SrvReservation>();
 builder.Services.AddScoped<SrvAvailability>();
+builder.Services.AddScoped<SrvPricing>();
+builder.Services.AddScoped<SrvPackage>();
+builder.Services.AddScoped<SrvKit>();
+builder.Services.AddScoped<SrvBlockedDate>();
 
 
 var app = builder.Build();

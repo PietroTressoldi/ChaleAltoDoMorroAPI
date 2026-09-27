@@ -90,8 +90,9 @@ docs/               CONTRATO_SITE.md, REGRAS_RESERVA.md, TASKS.md
 - Pré-reserva: hóspede 1 (nome, CPF, telefone obrigatórios; e-mail opcional) + hóspede 2 opcional.
   Nasce **pendente**. A confirmação é manual, no portal; o WhatsApp é o canal principal com o cliente.
 - Noites ocupadas por reserva = `[checkIn, checkOut)`: o dia do check-out fica livre para outro check-in.
-  **Planejado para o portal:** opção "check-out bloqueia a data" (folga entre hóspedes), global e/ou por reserva.
-  Só muda a expansão `BookingRules.Nights` / `SrvAvailability` (detalhes em `docs/TASKS.md`, "Ideias para o futuro").
+  **Planejado para o portal:** folga entre hóspedes — "check-in bloqueia a véspera" e "check-out bloqueia a data",
+  global e/ou por reserva. Muda só a ocupação no `SrvAvailability`, não as noites cobradas (detalhes em
+  `docs/TASKS.md`, "Ideias para o futuro").
 - **Nenhuma foto/vídeo com hóspedes** na galeria (lembrar no upload do portal).
 
 ## Comandos úteis

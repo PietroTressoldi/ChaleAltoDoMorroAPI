@@ -17,7 +17,7 @@ Referências: `docs/CONTRATO_SITE.md` (o que o site espera) e `docs/REGRAS_RESER
 - [x] 5 — POST /api/pre-reservations
 - [x] 6 — Bloqueios = manuais + reservas confirmadas
 - [x] 7 — Login do portal: Identity + JWT
-- [ ] 8 — Admin: preços, pacotes, kits e bloqueios
+- [x] 8 — Admin: preços, pacotes, kits e bloqueios
 - [ ] 9 — Admin: gestão das pré-reservas
 - [ ] 10 — Galeria e vídeos com upload
 - [ ] 11 — Robustez: erros, rate limiting, logs
@@ -336,10 +336,10 @@ assinado e não criptografado (não coloque dado sensível nele); `[Authorize]` 
 do banco (sobreposição) fica no service, não em atributo.
 
 **Critérios de aceite**
-- [ ] Tudo testável pelo Scalar com o token.
-- [ ] Criar pacote que se sobrepõe a outro → `409` com mensagem clara.
-- [ ] Mudanças aparecem no site ao recarregar (preço, pacote novo no calendário, kit desativado some).
-- [ ] Testes unitários para a regra de sobreposição de pacotes.
+- [x] Tudo testável pelo Scalar com o token.
+- [x] Criar pacote que se sobrepõe a outro → `409` com mensagem clara.
+- [x] Mudanças aparecem no site ao recarregar (preço, pacote novo no calendário, kit desativado some).
+- [x] Testes unitários para a regra de sobreposição de pacotes.
 
 ---
 
@@ -360,8 +360,9 @@ do banco (sobreposição) fica no service, não em atributo.
 5. **Concorrência**: dois cliques em "confirmar" em reservas diferentes com as mesmas noites não podem ambos
    passar. Use uma transação com nível de isolamento adequado e revalidação dentro dela. (Bônus avançado:
    constraint de exclusão do Postgres com `daterange`.)
-6. **Planejado (opcional, ver "Ideias para o futuro"):** opção "check-out bloqueia a data", global e/ou por reserva.
-   Se entrar junto com esta task, a tela de confirmação mostra a opção e a revalidação já considera a noite extra.
+6. **Planejado (opcional, ver "Ideias para o futuro"):** folga entre hóspedes — "check-in bloqueia a véspera" e
+   "check-out bloqueia a data", global e/ou por reserva. Se entrar junto com esta task, a tela de confirmação mostra
+   as opções e a revalidação já considera as noites extras.
 
 **Conceitos novos:** paginação; máquina de estados simples (quais transições são permitidas); transações no
 EF Core (`Database.BeginTransactionAsync`); condição de corrida.
@@ -436,10 +437,16 @@ EF Core (`Database.BeginTransactionAsync`); condição de corrida.
 
 ## Ideias para o futuro (fora do escopo atual)
 
-- **"Check-out bloqueia a data"** (folga entre hóspedes: limpeza, preparar a cesta). Opção configurável no portal:
-  - **global**: um valor de "noites de folga após cada reserva" (0 = padrão atual; 1 = a noite do check-out fica bloqueada),
-    guardado no banco como os preços e o mínimo de diárias;
-  - **por reserva**: um campo na reserva que sobrescreve o valor global (ex.: reserva com decoração especial).
-  - Impacto: só a expansão "reserva → noites" (função pura do `Domain`, task 6) muda, e o teste que garante que o dia do
-    check-out não fica bloqueado passa a depender da configuração. Validação da pré-reserva, `GET /api/blocked-dates` e
-    confirmação (task 9) herdam a regra, porque todos usam o mesmo serviço de disponibilidade.
+- **Folga entre hóspedes** (limpeza, preparar a cesta, decoração). Duas opções configuráveis no portal:
+  - **"Check-in bloqueia a véspera"**: noites de folga **antes** de cada reserva (0 = padrão atual; 1 = a noite anterior
+    ao check-in fica bloqueada, então ninguém faz check-out no dia da chegada);
+  - **"Check-out bloqueia a data"**: noites de folga **depois** de cada reserva (0 = padrão atual; 1 = a noite do
+    check-out fica bloqueada, então ninguém faz check-in no dia da saída).
+  - Cada uma pode ser **global** (valor no banco, como os preços e o mínimo de diárias) e/ou **por reserva** (campo na
+    reserva que sobrescreve o global, ex.: reserva com decoração especial).
+  - Impacto: muda só a expansão "reserva → noites **ocupadas**" usada pela disponibilidade (`SrvAvailability`, task 6):
+    `[checkIn − folgaAntes, checkOut + folgaDepois)`. **Cuidado:** as noites **cobradas** continuam `[checkIn, checkOut)`,
+    então não mexer no `BookingRules.Nights` usado pelo preço; criar uma expansão separada para ocupação.
+  - Os testes que garantem que o dia do check-out e a véspera do check-in ficam livres passam a depender da configuração.
+    Validação da pré-reserva, `GET /api/blocked-dates` e confirmação (task 9) herdam a regra pelo mesmo serviço.
+  - Ponto a decidir: a folga vale só entre reservas, ou também contra bloqueios manuais e pacotes?
