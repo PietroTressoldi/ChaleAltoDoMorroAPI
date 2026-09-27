@@ -16,7 +16,7 @@ Referências: `docs/CONTRATO_SITE.md` (o que o site espera) e `docs/REGRAS_RESER
 - [x] 4 — Projeto de testes + BookingRules (TDD)
 - [x] 5 — POST /api/pre-reservations
 - [x] 6 — Bloqueios = manuais + reservas confirmadas
-- [ ] 7 — Login do portal: Identity + JWT
+- [x] 7 — Login do portal: Identity + JWT
 - [ ] 8 — Admin: preços, pacotes, kits e bloqueios
 - [ ] 9 — Admin: gestão das pré-reservas
 - [ ] 10 — Galeria e vídeos com upload
@@ -309,10 +309,10 @@ lembrar de apagar os bloqueios: fonte de bug. Calcular na hora mantém uma únic
 assinado e não criptografado (não coloque dado sensível nele); `[Authorize]` em controller inteiro.
 
 **Critérios de aceite**
-- [ ] `GET /api/admin/me` sem token → `401`; com token do login → `200`.
-- [ ] Senha errada 5 vezes → conta bloqueada temporariamente.
-- [ ] Nenhuma chave ou senha no `appsettings.json` nem no git.
-- [ ] Rotas públicas do site continuam funcionando sem token.
+- [x] `GET /api/admin/me` sem token → `401`; com token do login → `200`.
+- [x] Senha errada 5 vezes → conta bloqueada temporariamente.
+- [x] Nenhuma chave ou senha no `appsettings.json` nem no git.
+- [x] Rotas públicas do site continuam funcionando sem token.
 
 **Armadilhas:** chave curta demais (erro em runtime); relógio/expiração; esquecer `UseAuthentication`.
 
