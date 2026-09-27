@@ -31,7 +31,8 @@ e "hoje" como parâmetros e devolve o resultado. Assim dá para testar tudo com 
   - sexta/sábado → `pricePerNight` da regra `weekend`; se não existir, usa a `weekday`;
   - demais noites → `pricePerNight` da regra `weekday`;
   - sem regra `weekday` cadastrada → **não dá para orçar** (retorne erro/nulo, não invente valor).
-- **Total** = diárias + soma dos kits escolhidos. Arredondar para centavos (`decimal` já evita o problema
+- **Total** = diárias + preço do kit escolhido (**um kit por reserva**, decisão do dono; o site ainda permite
+  vários e precisa ser ajustado). Arredondar para centavos (`decimal` já evita o problema
   de ponto flutuante do JavaScript).
 - **Cesta de café colonial** inclusa (entregue na chegada) quando a estadia tem **2 ou mais diárias**.
 

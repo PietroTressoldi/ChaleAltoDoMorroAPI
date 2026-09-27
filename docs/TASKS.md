@@ -13,7 +13,7 @@ Referências: `docs/CONTRATO_SITE.md` (o que o site espera) e `docs/REGRAS_RESER
 - [x] 1 — Entidades, DbContext e primeira migration
 - [x] 2 — Seed de desenvolvimento
 - [x] 3 — Rotas públicas de leitura (e ligar o site na API)
-- [ ] 4 — Projeto de testes + BookingRules (TDD)
+- [x] 4 — Projeto de testes + BookingRules (TDD)
 - [ ] 5 — POST /api/pre-reservations
 - [ ] 6 — Bloqueios = manuais + reservas confirmadas
 - [ ] 7 — Login do portal: Identity + JWT
@@ -216,9 +216,11 @@ API fica garantidamente igual ao site.
 de ler o relógio (teste determinístico); `DateOnly.DayOfWeek`, `AddDays`.
 
 **Critérios de aceite**
-- [ ] **Todos** os casos das tabelas de `REGRAS_RESERVA.md` existem como teste e passam (`dotnet test`).
-- [ ] `Domain/BookingRules` não referencia EF Core, ASP.NET nem `DateTime.Now`.
-- [ ] Nenhum `double`/`float` em dinheiro.
+- [x] **Todos** os casos das tabelas de `REGRAS_RESERVA.md` existem como teste e passam (`dotnet test`).
+- [x] `Domain/BookingRules` não referencia EF Core, ASP.NET nem `DateTime.Now`.
+- [x] Nenhum `double`/`float` em dinheiro.
+
+**Nota:** a tabela "Hóspedes" do `REGRAS_RESERVA.md` é validação de entrada (DataAnnotations) e é testada na task 5.
 
 **Armadilhas:** off-by-one nas noites (a noite do check-out **não** conta); esquecer que pacote exato dispensa
 o mínimo de fim de semana; comparar pacote só pelo check-in.
