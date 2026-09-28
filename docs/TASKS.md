@@ -6,7 +6,16 @@ Como usar: peça ao Claude **"próxima task"**. Implemente, rode `dotnet build` 
 Cada task tem: **Objetivo · Por que · O que fazer · Conceitos novos · Critérios de aceite · Como testar ·
 Armadilhas**. Os critérios de aceite são o "pronto": se todos batem, a task está feita.
 
-Referências: `docs/CONTRATO_SITE.md` (o que o site espera) e `docs/REGRAS_RESERVA.md` (regras + casos de teste).
+Referências:
+- `docs/CONTRATO_SITE.md`: o que o site espera.
+- `docs/CONTRATO_PORTAL.md`: o que o portal de gestão espera.
+- `docs/REGRAS_RESERVA.md`: regras de reserva e folga, com casos de teste.
+- `docs/REGRAS_CAIXA.md`: regras do Livro Caixa, com casos de teste.
+
+## Ordem sugerida
+O número da task é só um nome. A **ordem** abaixo segue o que o portal precisa primeiro:
+**13 → 9 → 14 → 15 → 16 → 17 → 18 → 19 → 20 → 10 → 11 → 12.**
+A 13 é pequena e destrava o portal no navegador. O Livro Caixa (14 e 15) vem cedo porque é a tela nova mais usada no dia a dia.
 
 ## Progresso
 - [x] 0 — Arrumar a casa
@@ -18,10 +27,18 @@ Referências: `docs/CONTRATO_SITE.md` (o que o site espera) e `docs/REGRAS_RESER
 - [x] 6 — Bloqueios = manuais + reservas confirmadas
 - [x] 7 — Login do portal: Identity + JWT
 - [x] 8 — Admin: preços, pacotes, kits e bloqueios
-- [ ] 9 — Admin: gestão das pré-reservas
+- [ ] 9 — Admin: reservas (pré-reservas e confirmadas)
 - [ ] 10 — Galeria e vídeos com upload
 - [ ] 11 — Robustez: erros, rate limiting, logs
 - [ ] 12 — Preparar o deploy
+- [ ] 13 — CORS do portal
+- [ ] 14 — Livro Caixa: domínio, regras puras e migration
+- [ ] 15 — Livro Caixa: rotas, despesas fixas e "lançar reserva no caixa"
+- [ ] 16 — Folga entre hóspedes
+- [ ] 17 — Hóspedes
+- [ ] 18 — Calendário do portal
+- [ ] 19 — Dashboard
+- [ ] 20 — Trocar senha
 
 ---
 
@@ -290,7 +307,7 @@ lembrar de apagar os bloqueios: fonte de bug. Calcular na hora mantém uma únic
 
 **Objetivo:** proteger as rotas `/api/admin/...` com usuário e senha, emitindo um JWT.
 
-**Por que:** o portal Blazor vai editar preços e ver dados pessoais dos hóspedes. Nada disso pode ficar aberto.
+**Por que:** o portal de gestão vai editar preços e ver dados pessoais dos hóspedes. Nada disso pode ficar aberto.
 
 **O que fazer**
 1. `AddIdentityCore<IdentityUser>(opções de senha forte e lockout)` + `.AddEntityFrameworkStores<AppDbContext>()`.
@@ -343,41 +360,59 @@ do banco (sobreposição) fica no service, não em atributo.
 
 ---
 
-## Task 9 — Admin: gestão das pré-reservas
+## Task 9 — Admin: reservas (pré-reservas e confirmadas)
 
-**Objetivo:** o portal lista, abre, confirma e cancela pré-reservas.
+**Objetivo:** o portal lista, filtra, ordena, abre, confirma e cancela reservas. É uma rota só para as duas telas:
+**"Pré-reservas"** (`status=pending`) e **"Reservas"** (`status=confirmed`).
 
-**O que fazer**
-1. `GET /api/admin/pre-reservations?status=pending&from=...&to=...&page=1&pageSize=20` → lista paginada
-   (mais recentes primeiro) com dados resumidos.
-2. `GET /api/admin/pre-reservations/{id}` → detalhe completo (hóspedes, kits, valores, se o valor do site divergiu).
-3. `POST /api/admin/pre-reservations/{id}/confirm`:
-   - só de `Pending`;
-   - revalida disponibilidade usando o `AvailabilityService` **ignorando a própria reserva** (outra pode ter sido
-     confirmada nas mesmas datas);
-   - em conflito → `409`.
-4. `POST /api/admin/pre-reservations/{id}/cancel` → de `Pending` ou `Confirmed` para `Cancelled` (libera as noites).
-5. **Concorrência**: dois cliques em "confirmar" em reservas diferentes com as mesmas noites não podem ambos
-   passar. Use uma transação com nível de isolamento adequado e revalidação dentro dela. (Bônus avançado:
-   constraint de exclusão do Postgres com `daterange`.)
-6. **Planejado (opcional, ver "Ideias para o futuro"):** folga entre hóspedes — "check-in bloqueia a véspera" e
-   "check-out bloqueia a data", global e/ou por reserva. Se entrar junto com esta task, a tela de confirmação mostra
-   as opções e a revalidação já considera as noites extras.
+**Por que:** a pré-reserva é só uma reserva com status `Pending`. Uma rota com filtro evita duplicar código e deixa a
+distinção entre as duas telas onde ela faz sentido: no portal.
 
-**Conceitos novos:** paginação; máquina de estados simples (quais transições são permitidas); transações no
-EF Core (`Database.BeginTransactionAsync`); condição de corrida.
+**O que fazer** (formatos exatos em `docs/CONTRATO_PORTAL.md`, seção "Reservas")
+1. `GET /api/admin/reservations` com os filtros `status` (pode repetir), `when` (`today`/`ongoing`/`upcoming`/`past`),
+   `from`/`to` (a estadia toca o intervalo), `search` (nome do hóspede 1 ou 2, telefone), `sort`
+   (`createdAt`/`checkIn`/`total`/`guestName`), `order` e paginação `page`/`pageSize`, com resposta
+   `{ items, page, pageSize, totalCount }`.
+   - Monte a query **incrementalmente**: `IQueryable` + `if (filtro) query = query.Where(...)`.
+   - Ordenação por um `switch` numa **lista fechada** de campos. Nunca monte a ordenação com texto vindo do usuário.
+   - Campo de `sort` desconhecido → `400`.
+2. `GET /api/admin/reservations/{id}` → detalhe completo: hóspedes com CPF, valores e se o total do site divergiu.
+   Inclui `nightsBreakdown`, recalculado pelo `BookingRules` só como referência.
+3. `POST /api/admin/reservations/{id}/confirm`, com corpo opcional `{ bufferBeforeNights?, bufferAfterNights? }`:
+   - só a partir de `Pending`;
+   - revalida a disponibilidade pelo `SrvAvailability` **ignorando a própria reserva**, porque outra reserva pode ter
+     sido confirmada nas mesmas datas;
+   - em conflito → `409`, com a noite ou a reserva que está no caminho;
+   - grava `ConfirmedAt`. Se a task 16 já existir, grava também a folga efetiva. Se ainda não existir, ignore o corpo.
+4. `POST /api/admin/reservations/{id}/cancel` → de `Pending` ou `Confirmed` para `Cancelled`, o que libera as noites.
+5. `PATCH /api/admin/reservations/{id}` com `{ adminNotes }`, um campo novo `AdminNotes` (string?, até 2000).
+   Precisa de migration.
+6. **Concorrência**: dois cliques em "confirmar", em reservas diferentes com as mesmas noites, não podem passar os dois.
+   Use uma transação com nível de isolamento adequado e revalide dentro dela.
+   Bônus avançado: constraint de exclusão do Postgres com `daterange`.
+7. As transições de status ficam num lugar só (um método na entidade ou uma classe pura), não espalhadas nos serviços.
+8. A antiga `ReservationController` vazia (`api/reservation`) pode ser removida ou reaproveitada.
+
+**Conceitos novos:** paginação com `Skip`/`Take` + `CountAsync`; filtros opcionais com `IQueryable`; máquina de estados
+simples; transações no EF Core (`Database.BeginTransactionAsync`); condição de corrida.
 
 **Critérios de aceite**
-- [ ] Confirmar → as noites aparecem bloqueadas no site. Cancelar → somem.
+- [ ] Os filtros de status, when, período e busca funcionam combinados. `sort` inválido → `400`.
+- [ ] Confirmar → as noites aparecem bloqueadas no site. Cancelar → as noites somem.
 - [ ] Confirmar duas reservas que se sobrepõem → a segunda recebe `409`.
 - [ ] Confirmar uma reserva já cancelada → `409` (transição inválida).
-- [ ] Testes unitários das transições de status.
+- [ ] O JSON da lista e do detalhe bate campo a campo com o `CONTRATO_PORTAL.md`. Na lista, o CPF **não** sai.
+- [ ] Testes unitários das transições de status e do filtro `when`, com "hoje" fixo.
+
+**Armadilhas:** `Skip` sem `OrderBy` gera paginação instável; esquecer o `AsNoTracking`; `when` calculado com
+`DateTime.Today` em vez do `IClock`; `search` com `ToLower()` (no Postgres, use `EF.Functions.ILike` e, se quiser
+ignorar acentos, a extensão `unaccent`).
 
 ---
 
 ## Task 10 — Galeria e vídeos com upload
 
-**Objetivo:** o portal envia fotos e cadastra vídeos; o site volta a mostrar galeria e tour.
+**Objetivo:** o portal envia fotos e cadastra vídeos, e o site volta a mostrar a galeria e o tour. As rotas e os formatos estão em `CONTRATO_PORTAL.md`, seção "Galeria e vídeos".
 
 **O que fazer**
 1. `Storage/IFileStorage` com `SaveAsync(stream, fileName, contentType, pasta)` → caminho/URL, e `DeleteAsync`.
@@ -421,13 +456,13 @@ EF Core (`Database.BeginTransactionAsync`); condição de corrida.
 **O que fazer**
 1. `Dockerfile` multi-stage (sdk → aspnet), rodando como usuário não-root.
 2. Configuração de produção só por **variáveis de ambiente** (`ConnectionStrings__Default`, `Jwt__Key`,
-   `Cors__AllowedOrigins__0`, `PublicBaseUrl`...).
+   `Cors__AllowedOrigins__0`, `Cors__PortalOrigins__0`, `PublicBaseUrl`...).
 3. Migrations em produção: script (`dotnet ef migrations script --idempotent`) ou bundle (`dotnet ef migrations bundle`),
    **não** `Database.Migrate()` automático sem pensar.
 4. CORS com o domínio real do site; HTTPS; `UseForwardedHeaders` se ficar atrás de proxy.
 5. Uploads: disco persistente (volume) ou trocar o `IFileStorage` por nuvem.
 6. Checklist de publicação: testes verdes no `develop` → merge `develop` → `master` → deploy.
-   Na landing: `VITE_API_URL` apontando para a API publicada.
+   Na landing e no portal, `VITE_API_URL` aponta para a API publicada.
 
 **Critérios de aceite**
 - [ ] `docker build` + `docker run` com variáveis de ambiente sobe a API conectada a um Postgres.
@@ -435,18 +470,238 @@ EF Core (`Database.BeginTransactionAsync`); condição de corrida.
 
 ---
 
+## Task 13 — CORS do portal
+
+**Objetivo:** o portal (React, no navegador) consegue chamar as rotas admin.
+
+**Por que:** a política "Site" libera só `GET`/`POST` e o header `Content-Type`. O portal usa `PUT`, `PATCH` e `DELETE`
+e manda o header `Authorization`, então o navegador bloqueia a chamada no **preflight** (`OPTIONS`).
+
+**O que fazer**
+1. Crie uma segunda política, `"Portal"`, com:
+   - as origens vindas de `Cors:PortalOrigins` (em dev `http://localhost:5174`);
+   - os métodos `GET, POST, PUT, PATCH, DELETE`;
+   - os headers `Content-Type` e `Authorization`.
+2. Aplique a política do portal nos controllers admin e no login. Há dois caminhos: `[EnableCors("Portal")]` no
+   `AdminControllerBase` e no `AuthController`, ou uma política única com as duas listas de origens. Justifique a escolha
+   na revisão.
+3. A origem do portal em produção vem de variável de ambiente (task 12).
+
+**Conceitos novos:**
+- O que é o preflight `OPTIONS`.
+- Por que `AllowAnyOrigin` + credenciais é proibido.
+- CORS **não** é segurança do servidor, é uma regra do navegador. Quem protege a API é o JWT.
+
+**Critérios de aceite**
+- [ ] Do portal em `localhost:5174`, o login e o `PUT /api/admin/pricing/weekday` funcionam sem erro de CORS no console.
+- [ ] O site em `localhost:5173` continua funcionando como antes.
+- [ ] Nenhuma origem fixa no código: tudo vem de configuração.
+
+---
+
+## Task 14 — Livro Caixa: domínio, regras puras e migration
+
+**Objetivo:** modelar o Livro Caixa no banco e escrever as regras numa classe pura, **com os testes antes** (TDD, igual à task 4).
+
+**Por que:** o caixa é dinheiro de verdade. Se o cálculo do caixa líquido ou da data da despesa fixa estiver errado, o
+dono decide com base em número errado. Com a regra pura e testada, a API e o portal mostram o mesmo número.
+
+**O que fazer** (regras e casos de teste em `docs/REGRAS_CAIXA.md`)
+1. Entidades em `Domain/`:
+   - `CashBook`: `Id` (int), `Year`, `Month`, `Status` (enum `Open/Closed`), `Notes?`, `CreatedAt`, `UpdatedAt`,
+     `ClosedAt?` e a coleção `Transactions`.
+   - `CashTransaction`: `Id` (Guid), `CashBookId`, `Date` (DateOnly), `Type` (enum `Income/Expense`), `Amount` (decimal),
+     `Description`, `CategoryId`, `PaymentMethod` (enum `Pix/Cash/Card/Transfer/Other`), `Notes?`, `ReservationId?`,
+     `RecurringExpenseId?`, `CreatedAt`, `UpdatedAt`.
+   - `CashCategory`: `Id` (int), `Name`, `Type`, `Color`, `Icon`, `IsActive`, `Order`.
+   - `RecurringExpense`: `Id` (int), `Description`, `Amount`, `CategoryId`, `DayOfMonth` (1–31), `PaymentMethod`,
+     `IsActive`, `StartMonth` e `EndMonth?`. Para os meses, uma sugestão: guardar como `DateOnly` do dia 1 e expor como `"AAAA-MM"`.
+2. Configurações em `Data/Configurations/`:
+   - `numeric(12,2)` nos valores e enums como texto.
+   - Índice único em `(Year, Month)`.
+   - Índice único **filtrado** em `(CashBookId, RecurringExpenseId)` e outro em `ReservationId`, os dois com `WHERE ... IS NOT NULL`.
+   - `OnDelete(SetNull)` para `RecurringExpenseId` e `ReservationId`, e `Restrict` para `CategoryId`.
+3. Seed das categorias padrão (tabela da regra 19), em **todos os ambientes**, só quando a tabela estiver vazia.
+4. `Domain/CashBookRules` (pura):
+   - `Summarize(transações)` → income, expense, net, byCategory e daily.
+   - `RecurringDate(dayOfMonth, ano, mês)` → a data.
+   - `RecurringToApply(modelos, mês, idsJáLançados)` → o que criar.
+   - Validações de transação (data dentro do mês, tipo da categoria).
+5. Testes xUnit com **todas** as tabelas de `REGRAS_CAIXA.md`: resumo, transação, livro, data da despesa fixa e aplicar despesas fixas.
+6. Migration `LivroCaixa`.
+
+**Conceitos novos:**
+- Índice único filtrado no Postgres (`HasFilter`).
+- `DateTime.DaysInMonth`.
+- Por que o valor é sempre positivo e o sinal vem do tipo (evita uma "saída de −50").
+
+**Critérios de aceite**
+- [ ] Migration aplicada, com as tabelas e os índices visíveis no banco.
+- [ ] Todos os casos de `REGRAS_CAIXA.md` que não dependem de HTTP viram testes e passam.
+- [ ] `CashBookRules` não referencia EF nem relógio. Nenhum `double` em dinheiro.
+
+**Armadilhas:**
+- `DayOfMonth = 31` em fevereiro dá exceção no `new DateOnly(...)`.
+- Somar `decimal` com LINQ no banco pode voltar `null` num livro vazio. Use `?? 0` ou some em memória.
+- Esquecer o filtro no índice único faz todas as transações sem `RecurringExpenseId` colidirem.
+
+---
+
+## Task 15 — Livro Caixa: rotas, despesas fixas e "lançar reserva no caixa"
+
+**Objetivo:** expor tudo do caixa para o portal, exatamente como em `CONTRATO_PORTAL.md`, seção "Livro Caixa".
+
+**O que fazer**
+1. `SrvCashBook` e os controllers `AdminCashBookController`, `AdminCashTransactionController`, `AdminCashCategoryController`
+   e `AdminRecurringExpenseController`, todos herdando `AdminControllerBase`.
+2. Livros:
+   - listar, com filtros e ordenação;
+   - visão anual;
+   - criar, com `applyRecurring`;
+   - detalhe por `{year}/{month}`;
+   - notas, fechar, reabrir e aplicar despesas fixas;
+   - apagar, só quando vazio.
+3. Transações: criar, editar e apagar, respeitando o livro fechado (`409`).
+4. Categorias: CRUD, em que "apagar" vira "desativar" quando a categoria está em uso. Despesas fixas: CRUD.
+5. `POST /api/admin/reservations/{id}/cash-entry`, seguindo as regras 20–24. Depende da task 9, que traz a reserva confirmada.
+6. Passar a preencher o `cashTransactionId` na lista e no detalhe de reservas da task 9.
+7. Use o `AdminResult` para responder `404`, `409` e `422` com mensagens em PT-BR, que o portal mostra direto.
+
+**Conceitos novos:**
+- Rotas com mais de um parâmetro (`{year:int}/{month:int:range(1,12)}`).
+- `201` com `CreatedAtAction` numa rota composta.
+- Como decidir o que é `409` (estado) e o que é `422` (regra).
+
+**Critérios de aceite**
+- [ ] Os casos HTTP de `REGRAS_CAIXA.md` (livro fechado, mês duplicado, categoria de tipo errado, lançar reserva duas
+      vezes...) devolvem o status certo.
+- [ ] Criar outubro com `applyRecurring: true` já traz as despesas fixas ativas.
+- [ ] O JSON bate campo a campo com o `CONTRATO_PORTAL.md`.
+- [ ] Tudo testável pelo Scalar.
+
+---
+
+## Task 16 — Folga entre hóspedes
+
+**Objetivo:** implementar "check-in bloqueia a véspera" e "check-out bloqueia a data", com um valor global que o portal
+edita e um valor por reserva gravado na confirmação.
+
+**Por que:** o dono precisa de tempo para limpar, preparar a cesta e decorar entre um hóspede e outro. A folga estava em
+"ideias para o futuro" e agora entrou na v1. Regras e casos de teste em `docs/REGRAS_RESERVA.md`, seção "Folga entre hóspedes".
+
+**O que fazer**
+1. Configuração global no banco: uma tabela `Settings` (chave/valor) ou uma entidade `BookingSettings` de linha única,
+   com `BufferBeforeNights` e `BufferAfterNights` (de 0 a 3, padrão 0). Rotas `GET/PUT /api/admin/settings/buffer`.
+2. `Reservation` ganha `BufferBeforeNights?` e `BufferAfterNights?`, preenchidos **na confirmação** (task 9) com o valor
+   do pedido ou, se ele não vier, com o global.
+3. Classe pura `OccupancyRules`:
+   - noites ocupadas publicadas por uma reserva confirmada, usando os globais atuais (regra 4);
+   - conflito entre duas estadias (regra 3).
+
+   O `BookingRules.Nights` **não muda**: ele continua sendo o que se cobra.
+4. `SrvAvailability` passa a usar a `OccupancyRules`. Com isso, o `GET /api/blocked-dates`, a validação da pré-reserva e
+   a confirmação passam a respeitar a folga sem mudança própria.
+5. `GET /api/admin/calendar` (task 18) devolve as `bufferNights`.
+
+**Critérios de aceite**
+- [ ] Todos os casos da tabela "Folga entre hóspedes" de `REGRAS_RESERVA.md` viram teste e passam.
+- [ ] Com 0/0, **nenhum** teste antigo quebra: o comportamento de hoje fica igual.
+- [ ] Com o global 0/1 e uma reserva confirmada, o calendário do **site** mostra a noite do check-out bloqueada.
+- [ ] Mudar o global depois não muda a folga de uma reserva já confirmada, que vale o snapshot (ver o caso "global mudou").
+
+---
+
+## Task 17 — Hóspedes
+
+**Objetivo:** a tela "Hóspedes" do portal: lista com busca, filtros e ordenação, detalhe com o histórico e edição do contato.
+
+**O que fazer** (formatos em `CONTRATO_PORTAL.md`, seção "Hóspedes")
+1. `Guest` ganha `Notes?` (até 1000), com migration.
+2. `GET /api/admin/guests`:
+   - campos calculados `stays`, `totalSpent`, `lastStay` e `nextStay`, contando só reservas confirmadas, como hóspede 1 **ou** 2;
+   - `search` por nome, telefone, e-mail ou CPF;
+   - `sort` por `name`, `stays`, `totalSpent` ou `lastStay`;
+   - paginação.
+3. `GET /api/admin/guests/{id}`, com o CPF e todas as reservas, de qualquer status.
+4. `PATCH /api/admin/guests/{id}` (nome, telefone, e-mail, notas), com a mesma validação de formato da pré-reserva.
+
+**Conceitos novos:**
+- Projeção com subconsultas agregadas (`Count`, `Sum`, `Max` dentro do `Select`).
+- Ordenar por um campo calculado.
+- Olhar o SQL gerado (`ToQueryString()`) para conferir que não virou N+1.
+
+**Critérios de aceite**
+- [ ] Ordenar por `totalSpent desc` traz primeiro quem mais gastou, contando só as confirmadas.
+- [ ] O CPF não sai na lista, só no detalhe.
+- [ ] Buscar "5299" encontra o hóspede pelo CPF.
+
+---
+
+## Task 18 — Calendário do portal
+
+**Objetivo:** `GET /api/admin/calendar?from=&to=`, que alimenta a agenda e o mini calendário do dashboard. Traz os
+detalhes que o site público não pode ver: nome do hóspede, valor e motivo do bloqueio.
+
+**O que fazer:** seguir o formato do `CONTRATO_PORTAL.md`, seção "Calendário". A rota devolve:
+- as reservas `confirmed` e `pending` que tocam o intervalo;
+- os bloqueios manuais, com o motivo;
+- os pacotes que tocam o intervalo;
+- as `bufferNights` das confirmadas (depende da task 16; antes dela, lista vazia).
+
+O intervalo tem no máximo 100 dias; acima disso → `400`.
+
+**Critérios de aceite**
+- [ ] Uma reserva de 30/10 → 02/11 aparece tanto em `from=2026-10-01&to=2026-10-31` quanto em novembro.
+- [ ] O `reason` dos bloqueios aparece aqui (rota autenticada) e continua fora da rota pública.
+
+---
+
+## Task 19 — Dashboard
+
+**Objetivo:** `GET /api/admin/dashboard?period=&year=&index=`, com os números e as séries do dashboard, a comparação com o
+período anterior e o bloco do Livro Caixa.
+
+**Por que:** o dono quer ver de relance como estão o mês, o trimestre, o semestre ou o ano: faturamento, ocupação, caixa
+líquido e o que precisa de atenção (pré-reservas pendentes, despesas fixas não lançadas, mês negativo).
+
+**O que fazer:** seguir o formato e as **regras de cálculo** do `CONTRATO_PORTAL.md`, seção "Dashboard".
+1. Uma classe pura para os períodos:
+   - `DashboardPeriod.From(kind, year, index)` → from, to, label e o período anterior;
+   - o anterior do 1º trimestre de 2026 é o 4º trimestre de 2025, e o anterior de janeiro é dezembro do ano anterior.
+2. Métricas de reserva: faturamento pelo check-in, noites vendidas recortadas ao período e ocupação.
+3. Métricas do caixa: a soma dos livros dos meses do período, mais `topExpenses`, `pendingRecurring`,
+   `monthsWithoutBook` e `negativeMonths`.
+4. `series` (por dia no mês, por mês nos demais), `expensesByCategory`, `topKits`, `upcoming` e `pendingCount`.
+
+**Critérios de aceite**
+- [ ] Testes da classe de período: todos os tipos, virada de ano, e `index` inválido → `400`.
+- [ ] Testes do recorte de noites: a estadia de 30/10 → 02/11 conta 2 noites em outubro e 1 em novembro.
+- [ ] `occupancyRate` fica entre 0 e 1. Em período sem noites disponíveis, vale 0 (sem divisão por zero).
+
+**Armadilhas:** carregar tudo em memória. Filtre por período no banco e agregue lá quando der; o volume é pequeno, mas o
+hábito importa.
+
+---
+
+## Task 20 — Trocar senha
+
+**Objetivo:** `POST /api/admin/me/password` com `{ currentPassword, newPassword }`, usando o
+`UserManager.ChangePasswordAsync`.
+
+**Critérios de aceite**
+- [ ] Senha atual errada → `422` "Senha atual incorreta".
+- [ ] Senha nova fraca → `422` com as regras que falharam, em PT-BR.
+- [ ] Depois da troca, o login com a senha antiga falha e com a nova funciona.
+
+---
+
 ## Ideias para o futuro (fora do escopo atual)
 
-- **Folga entre hóspedes** (limpeza, preparar a cesta, decoração). Duas opções configuráveis no portal:
-  - **"Check-in bloqueia a véspera"**: noites de folga **antes** de cada reserva (0 = padrão atual; 1 = a noite anterior
-    ao check-in fica bloqueada, então ninguém faz check-out no dia da chegada);
-  - **"Check-out bloqueia a data"**: noites de folga **depois** de cada reserva (0 = padrão atual; 1 = a noite do
-    check-out fica bloqueada, então ninguém faz check-in no dia da saída).
-  - Cada uma pode ser **global** (valor no banco, como os preços e o mínimo de diárias) e/ou **por reserva** (campo na
-    reserva que sobrescreve o global, ex.: reserva com decoração especial).
-  - Impacto: muda só a expansão "reserva → noites **ocupadas**" usada pela disponibilidade (`SrvAvailability`, task 6):
-    `[checkIn − folgaAntes, checkOut + folgaDepois)`. **Cuidado:** as noites **cobradas** continuam `[checkIn, checkOut)`,
-    então não mexer no `BookingRules.Nights` usado pelo preço; criar uma expansão separada para ocupação.
-  - Os testes que garantem que o dia do check-out e a véspera do check-in ficam livres passam a depender da configuração.
-    Validação da pré-reserva, `GET /api/blocked-dates` e confirmação (task 9) herdam a regra pelo mesmo serviço.
-  - Ponto a decidir: a folga vale só entre reservas, ou também contra bloqueios manuais e pacotes?
+- **Folga entre hóspedes**: entrou na v1 como **task 16**. A decisão tomada foi "só entre reservas" (regra 5 em
+  `REGRAS_RESERVA.md`).
+- **Refresh token**: hoje o token vale 60 minutos e o portal volta para o login quando ele vence. Uma melhoria é um refresh
+  token em cookie `HttpOnly` com rotação, para o dono não precisar logar de novo no celular.
+- **Estorno automático no caixa** ao cancelar uma reserva já lançada. Hoje o dono decide manualmente (regra 24 de
+  `REGRAS_CAIXA.md`).
+- **Anexos no caixa** (foto do comprovante ou da nota) usando o `IFileStorage` da task 10.
+- **Papéis** (dono × ajudante): hoje qualquer usuário logado pode tudo.

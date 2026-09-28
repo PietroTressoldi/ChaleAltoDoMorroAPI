@@ -189,7 +189,7 @@ Corpo enviado pelo site (exatamente assim):
 | `checkIn`, `checkOut` | Validar com as regras de `REGRAS_RESERVA.md` |
 | `nights` | Informativo. Recalcular no servidor |
 | `packageId` | Id do pacote ou `null`. Conferir: se a estadia é um pacote, tem que bater |
-| `extraIds` | Ids dos kits escolhidos (pode ser `[]`). Todos precisam existir e estar ativos |
+| `extraIds` | **No máximo 1 kit por reserva**: `[]` ou `["id"]` (com mais de um → `400`). O kit precisa existir e estar ativo. O nome continua no plural por compatibilidade com o site |
 | `estimatedTotal` | **Só informativo. Nunca usar como preço.** O total gravado é o recalculado |
 | `guest.name` | Obrigatório, mín. 2 caracteres |
 | `guest.cpf` | Obrigatório, **só dígitos**, CPF válido (dígitos verificadores) |
@@ -205,10 +205,6 @@ Respostas sugeridas:
 
 ---
 
-## Rotas do portal (autenticadas — desenhadas nas tasks 7 a 10)
-Prefixo `/api/admin/...`, `[Authorize]`, JWT no header `Authorization: Bearer ...`. Não são usadas pelo
-site. O formato fica a critério do dono ao fazer as tasks, seguindo as mesmas convenções acima.
-- `POST /api/auth/login` → `{ "accessToken": "...", "expiresAt": "..." }`
-- Preços, pacotes, kits, bloqueios: CRUD
-- Pré-reservas: listar/filtrar, ver detalhe, confirmar, cancelar
-- Galeria e vídeos: upload, editar texto, reordenar, remover
+## Rotas do portal
+Estão todas em **`docs/CONTRATO_PORTAL.md`**, que é o contrato do portal de gestão (React). Elas usam o prefixo
+`/api/admin/...`, exigem JWT e não são usadas pelo site.

@@ -6,8 +6,13 @@ Ela atende dois clientes:
 1. **Landing page** (React, pronta) — `D:\Desenvolvimento\ChaleAltoDoMorroLandingPage`. Lê preços, datas
    bloqueadas, pacotes, kits, galeria e vídeos, e envia pré-reservas. O site já está pronto para usar a API:
    basta configurar `VITE_API_URL`.
-2. **Portal de gestão** (Blazor, ainda não existe) — o dono e o pai dele cadastram preços, pacotes, kits,
-   bloqueios, fotos e vídeos, e confirmam as pré-reservas.
+2. **Portal de gestão** (React, `D:\Desenvolvimento\ChaleAltoDoMorroGestao`) — o dono e o pai dele cadastram
+   preços, pacotes, kits, bloqueios, fotos e vídeos, confirmam as pré-reservas, acompanham o dashboard e controlam o
+   **Livro Caixa**. Quem **implementa o portal é o Claude**, ensinando o dono em etapas. Nesta API, o Claude continua
+   **mentor**. O contrato do portal fica em `docs/CONTRATO_PORTAL.md`.
+
+O contexto do projeto inteiro (landing + API + portal), as decisões e os briefings de vídeo e de venda ficam em
+`D:\Desenvolvimento\ChaleAltoDoMorroDocs`.
 
 ---
 
@@ -30,7 +35,7 @@ O dono **sabe C#** e quer **aprender construindo esta API com as próprias mãos
 |---|---|
 | "próxima task" / "qual a próxima?" | Lê `docs/TASKS.md` e apresenta a **primeira task sem `[x]`**: objetivo, por que, passos, critérios de aceite. Pergunta se ficou claro antes de ele começar. |
 | "tô travado" / "dica" | Dicas **em níveis**. Nível 1: o conceito e onde olhar na documentação oficial. Nível 2: nomes de classes/métodos e assinaturas, ou um esqueleto sem lógica. Nível 3 (só se ele pedir de novo): um trecho curto de exemplo. Nunca pule direto para o nível 3. |
-| "revisa" / "terminei a task N" | Roda `git status` e `git diff` (e `git diff develop...HEAD` se houver branch de feature), `dotnet build` e `dotnet test`. Confere os **critérios de aceite** da task e o **contrato** (`docs/CONTRATO_SITE.md`). Aponta problemas **em ordem de gravidade** (bug/segurança → contrato → design → estilo), cada um com o arquivo:linha e o porquê. Diz também o que ficou bom. **Não corrige sozinho.** |
+| "revisa" / "terminei a task N" | Roda `git status` e `git diff` (e `git diff develop...HEAD` se houver branch de feature), `dotnet build` e `dotnet test`. Confere os **critérios de aceite** da task e o **contrato** (`docs/CONTRATO_SITE.md` e `docs/CONTRATO_PORTAL.md`). Aponta problemas **em ordem de gravidade** (bug/segurança → contrato → design → estilo), cada um com o arquivo:linha e o porquê. Diz também o que ficou bom. **Não corrige sozinho.** |
 | "aprovado?" | Se build + testes passam e todos os critérios foram atendidos: marca `[x]` na task em `docs/TASKS.md` e sugere a mensagem de commit (PT-BR). |
 | "explica X" | Explica o conceito com exemplo ligado a este projeto. |
 
@@ -62,7 +67,7 @@ ChaleAltoDoMorroAPI/
   Interfaces/       interfaces de serviços transversais (ex.: IClock)
   Global/           implementações transversais (ex.: BrazilClock — "hoje" no fuso de Brasília)
 ChaleAltoDoMorroAPI.Tests/   xUnit — principalmente BookingRules e validação de CPF
-docs/               CONTRATO_SITE.md, REGRAS_RESERVA.md, TASKS.md
+docs/               CONTRATO_SITE.md, CONTRATO_PORTAL.md, REGRAS_RESERVA.md, REGRAS_CAIXA.md, TASKS.md
 ```
 
 ## Regras que valem em toda revisão
@@ -90,9 +95,12 @@ docs/               CONTRATO_SITE.md, REGRAS_RESERVA.md, TASKS.md
 - Pré-reserva: hóspede 1 (nome, CPF, telefone obrigatórios; e-mail opcional) + hóspede 2 opcional.
   Nasce **pendente**. A confirmação é manual, no portal; o WhatsApp é o canal principal com o cliente.
 - Noites ocupadas por reserva = `[checkIn, checkOut)`: o dia do check-out fica livre para outro check-in.
-  **Planejado para o portal:** folga entre hóspedes — "check-in bloqueia a véspera" e "check-out bloqueia a data",
-  global e/ou por reserva. Muda só a ocupação no `SrvAvailability`, não as noites cobradas (detalhes em
-  `docs/TASKS.md`, "Ideias para o futuro").
+  **Folga entre hóspedes (task 16):** "check-in bloqueia a véspera" e "check-out bloqueia a data",
+  com valor global e snapshot por reserva na confirmação. Muda só a ocupação no `SrvAvailability`, não as noites cobradas (detalhes em
+  `docs/REGRAS_RESERVA.md`, seção "Folga entre hóspedes").
+- **Livro Caixa** (tasks 14 e 15): um livro por mês com entradas e saídas. O resultado é o **caixa líquido** do mês
+  (entradas − saídas), **sem saldo inicial nem acumulado**. Tem despesas fixas, fecha e reabre o mês, e a reserva confirmada
+  pode ser lançada como entrada. Regras em `docs/REGRAS_CAIXA.md`.
 - **Nenhuma foto/vídeo com hóspedes** na galeria (lembrar no upload do portal).
 
 ## Comandos úteis

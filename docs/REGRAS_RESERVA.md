@@ -48,6 +48,34 @@ Com os 9 primeiros dígitos `d0..d8`:
 2. `soma2 = d0*11 + d1*10 + ... + d9*2`; `dv2 = (soma2 * 10) % 11`; se `dv2 == 10` → `0`. Tem que ser igual a `d10`.
 3. CPFs com os 11 dígitos iguais (`111.111.111-11`) passam na conta, mas são **inválidos**.
 
+## Folga entre hóspedes (task 16)
+A folga serve para limpeza, preparar a cesta e decorar. São duas configurações globais, cada uma de 0 a 3 noites:
+- **"Check-in bloqueia a véspera"** (`BufferBeforeNights`, **B**): noites livres **antes** de cada reserva.
+- **"Check-out bloqueia a data"** (`BufferAfterNights`, **A**): noites livres **depois** de cada reserva.
+
+O padrão é 0/0, que é exatamente o comportamento de hoje.
+
+**Regras**
+1. **Na confirmação**, a reserva guarda os valores efetivos (os do pedido, ou os globais quando o pedido vem com `null`).
+   Mudar a configuração global depois **não mexe** em reservas já confirmadas.
+2. As noites **cobradas** continuam `[checkIn, checkOut)`. A folga **nunca** entra no preço nem em `Nights`.
+3. **Duas estadias S e R não podem conviver** quando alguma delas invade a área protegida da outra. A área protegida
+   de R vai de `R.checkIn − R.B` até `R.checkOut + R.A`, sem incluir o final. Em fórmula: há conflito se
+   `[S.in − S.B, S.out + S.A) ∩ [R.in, R.out) ≠ ∅` **ou** `[R.in − R.B, R.out + R.A) ∩ [S.in, S.out) ≠ ∅`.
+   - As folgas podem se sobrepor entre si: as duas são "casa vazia".
+   - Uma estadia nova (pré-reserva) usa os valores **globais** atuais como `S.B` e `S.A`.
+4. **Noites indisponíveis publicadas** (`GET /api/blocked-dates` e a validação da pré-reserva): para cada reserva
+   confirmada R, com os globais atuais `gB` e `gA`, publique as noites
+   `[R.in − max(R.B, gA), R.out + max(R.A, gB))`.
+   - Assim o calendário do site, que só conhece noites bloqueadas, impede exatamente o que a regra 3 proíbe. A nova
+     estadia precisa **terminar** a tempo de respeitar a folga de R e a própria folga depois (`max(R.B, gA)`), e
+     **começar** depois da folga de R e da própria folga antes (`max(R.A, gB)`).
+   - O `reason` continua sem sair na rota pública.
+5. A folga vale **só entre reservas**. Bloqueios manuais e pacotes não ganham folga, e a folga de uma reserva pode cair
+   sobre um bloqueio manual. Motivo: bloqueio é uma decisão manual do dono, e o pacote vira reserva quando é vendido.
+6. Como a regra é pura, implemente as contas numa classe de domínio (ex.: `OccupancyRules.OccupiedNights(reserva, gB, gA)`)
+   separada de `BookingRules.Nights`, que continua sendo o que se cobra.
+
 ---
 
 # Casos de teste (portar para xUnit)
@@ -152,3 +180,24 @@ Mínimo configurável:
 | hóspede 2 com nome + CPF `111.444.777-00` | erro no CPF do hóspede 2 |
 | hóspede 2 só com CPF válido, sem nome | erro no nome do hóspede 2 |
 | telefone `+55 (51) 98909-8631` | o site já manda só dígitos (`51989098631`); a API valida 10–11 dígitos |
+
+## Folga entre hóspedes
+Mesmo cenário de referência ("hoje" = 01/10/2026). Reserva confirmada **R**: 09/10 → 11/10 (noites 09 e 10).
+
+| Caso | Folga de R (B/A) | Globais (gB/gA) | Noites publicadas por R | Estadia nova | Esperado |
+|---|---|---|---|---|---|
+| sem folga (comportamento atual) | 0/0 | 0/0 | 09, 10 | 11/10 → 12/10 | ok (entra no dia em que R sai) |
+| sem folga | 0/0 | 0/0 | 09, 10 | 07/10 → 09/10 | ok (sai no dia em que R entra) |
+| check-out bloqueia a data | 0/1 | 0/1 | 08, 09, 10, 11 | 11/10 → 12/10 | BlockedNight (11/10) |
+| check-out bloqueia a data | 0/1 | 0/1 | 08, 09, 10, 11 | 12/10 → 13/10 | ok |
+| check-out bloqueia a data, nova antes de R | 0/1 | 0/1 | 08, 09, 10, 11 | 07/10 → 09/10 | BlockedNight (08/10): a própria folga depois da nova cairia na noite 09 de R |
+| check-out bloqueia a data, nova antes de R | 0/1 | 0/1 | 08, 09, 10, 11 | 07/10 → 08/10 | ok |
+| check-in bloqueia a véspera | 1/0 | 1/0 | 08, 09, 10, 11 | 07/10 → 09/10 | BlockedNight (08/10) |
+| check-in bloqueia a véspera | 1/0 | 1/0 | 08, 09, 10, 11 | 12/10 → 13/10 | ok |
+| R confirmada antes com folga, global mudou para 0/0 | 0/1 | 0/0 | 09, 10, 11 | 11/10 → 12/10 | BlockedNight (11/10): vale o snapshot de R |
+| global passou para 0/2 depois de R (0/0) | 0/0 | 0/2 | 07, 08, 09, 10 | 07/10 → 08/10 | BlockedNight (07/10): a folga de 2 noites da nova invadiria R |
+| folga sobre bloqueio manual | 0/1 | 0/1 | 08, 09, 10, 11 | — | confirmar R com bloqueio manual em 11/10 → ok (regra 5) |
+| preço de R com folga 0/1 | 0/1 | — | — | — | continua **2 diárias**, 1.789 (a folga não é cobrada) |
+
+Confirmação (task 9) com o global 0/1: uma pendente P de 11/10 → 12/10, com R já confirmada (0/1) → `409` (P invade a
+folga de R). Se R tivesse sido confirmada com `bufferAfterNights: 0` → ok.
