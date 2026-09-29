@@ -77,8 +77,10 @@ public class SrvReservation(AppDbContext db, SrvAvailability srvAvailability, IC
             // Só as navegações: o EF preenche Guest1Id/Guest2Id (e insere o hóspede se ele for novo).
             Guest1 = mainGuest,
             Guest2 = secondGuest,
-            EstimatedTotalFromSite = request.EstimatedTotal ?? 0m,
+            Source = ReservationSource.Site,
+            EstimatedTotalFromSite = request.EstimatedTotal,
             Total = bookingQuote.Total,
+            CalculatedTotal = bookingQuote.Total, // no site, o preço é sempre o calculado
             // Calculado no servidor, nunca o request.Nights (que vem do navegador).
             Nights = bookingQuote.Nights.Count,
             NightsTotal = bookingQuote.NightsTotal,

@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using ChaleAltoDoMorroAPI.Domain;
+using ChaleAltoDoMorroAPI.Dtos.Validation;
 
 namespace ChaleAltoDoMorroAPI.Dtos.Admin;
 
@@ -48,6 +49,79 @@ public class ReservationQuery : IValidatableObject
 // PATCH /api/admin/reservations/{id}. Texto vazio apaga a anotação.
 public record UpdateReservationNotesRequest([StringLength(2000)] string? AdminNotes);
 
+// Hóspede no formulário do portal. Mesmas validações de formato do site; o CPF obrigatório do hóspede 1
+// é conferido no SaveReservationRequest (aqui a classe serve para os dois hóspedes).
+public sealed class AdminGuestRequest : IValidatableObject
+{
+    [Required(ErrorMessage = "Informe o nome.")]
+    [StringLength(150, ErrorMessage = "Nome muito longo.")]
+    public string Name { get; init; } = string.Empty;
+
+    [Cpf]
+    public string? Cpf { get; init; }
+
+    [RegularExpression(@"^\d{10,11}$", ErrorMessage = "Telefone deve ter 10 ou 11 dígitos (DDD + número).")]
+    public string? Phone { get; init; }
+
+    [EmailAddress(ErrorMessage = "E-mail inválido.")]
+    [StringLength(254)]
+    public string? Email { get; init; }
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (Name.Trim().Length < 2)
+            yield return new ValidationResult("Nome precisa ter pelo menos 2 caracteres.", [nameof(Name)]);
+    }
+}
+
+// PUT /api/admin/reservations/{id}: o formulário inteiro (substitui tudo).
+public class SaveReservationRequest : IValidatableObject
+{
+    public DateOnly CheckIn { get; init; }
+    public DateOnly CheckOut { get; init; }
+
+    [Required(ErrorMessage = "Informe o hóspede 1.")]
+    public AdminGuestRequest Guest1 { get; init; } = null!;
+
+    public AdminGuestRequest? Guest2 { get; init; }
+
+    public Guid? KitId { get; init; }
+
+    /// <summary>Valor combinado. null = usar o calculado pelo BookingRules.</summary>
+    [Range(typeof(decimal), "0", "999999", ParseLimitsInInvariantCulture = true, ErrorMessage = "O total precisa ficar entre 0 e 999.999.")]
+    public decimal? Total { get; init; }
+
+    [StringLength(2000)]
+    public string? AdminNotes { get; init; }
+
+    public virtual IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        // Mesma regra do site: o hóspede 1 precisa de CPF e telefone (identifica a pessoa e é o contato no WhatsApp).
+        if (Guest1 is null)
+            yield break;
+        if (string.IsNullOrWhiteSpace(Guest1.Cpf))
+            yield return new ValidationResult("Informe o CPF do hóspede 1.", [$"{nameof(Guest1)}.{nameof(AdminGuestRequest.Cpf)}"]);
+        if (string.IsNullOrWhiteSpace(Guest1.Phone))
+            yield return new ValidationResult("Informe o telefone do hóspede 1.", [$"{nameof(Guest1)}.{nameof(AdminGuestRequest.Phone)}"]);
+    }
+}
+
+// POST /api/admin/reservations: o mesmo formulário + o status inicial.
+public sealed class CreateReservationRequest : SaveReservationRequest
+{
+    /// <summary>pending ou confirmed. Sem valor = pending.</summary>
+    public ReservationStatus Status { get; init; } = ReservationStatus.Pending;
+
+    public override IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        foreach (var error in base.Validate(validationContext))
+            yield return error;
+
+        if (Status is not (ReservationStatus.Pending or ReservationStatus.Confirmed))
+            yield return new ValidationResult("O status inicial precisa ser pending ou confirmed.", [nameof(Status)]);
+    }
+}
+
 // ---------- Saída ----------
 
 // Lista: sem CPF, sem e-mail. Só o que a tabela do portal mostra.
@@ -66,7 +140,8 @@ public record ReservationListItemDto(
     bool IncludesColonialBreakfast,
     DateTimeOffset CreatedAt,
     DateTimeOffset? ConfirmedAt,
-    DateTimeOffset? CancelledAt);
+    DateTimeOffset? CancelledAt,
+    ReservationSource Source);
 
 public record GuestDetailDto(Guid Id, string Name, string? Cpf, string? Phone, string? Email);
 
@@ -87,7 +162,9 @@ public record ReservationDetailDto : ReservationListItemDto
     public Guid? KitId { get; init; }
     public decimal? KitPrice { get; init; }
     public decimal NightsTotal { get; init; }
-    public decimal EstimatedTotalFromSite { get; init; }
+    public decimal CalculatedTotal { get; init; }
+    public bool PriceAdjusted { get; init; }
+    public decimal? EstimatedTotalFromSite { get; init; }
     public bool SiteTotalDiverged { get; init; }
     public required IReadOnlyList<NightBreakdownDto> NightsBreakdown { get; init; }
 }

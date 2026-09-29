@@ -23,7 +23,13 @@ public class ReservationConfiguration : IEntityTypeConfiguration<Reservation>
 
         builder.Property(reservation => reservation.NightsTotal).HasPrecision(10, 2);
         builder.Property(reservation => reservation.Total).HasPrecision(10, 2);
+        builder.Property(reservation => reservation.CalculatedTotal).HasPrecision(10, 2);
         builder.Property(reservation => reservation.EstimatedTotalFromSite).HasPrecision(10, 2);
+
+        builder.Property(reservation => reservation.Source)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired();
 
         builder.Property(reservation => reservation.Observations)
             .HasMaxLength(1000);

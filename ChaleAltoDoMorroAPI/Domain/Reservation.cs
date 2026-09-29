@@ -17,8 +17,15 @@ public class Reservation
     public decimal? KitPrice { get; set; }
 
     public decimal NightsTotal { get; set; }
+    // Total = o que o hóspede paga. CalculatedTotal = o que o BookingRules calculou na hora.
+    // No site são sempre iguais; no portal o admin pode combinar outro valor (desconto, cortesia...).
     public decimal Total { get; set; }
-    public decimal EstimatedTotalFromSite { get; set; }
+    public decimal CalculatedTotal { get; set; }
+
+    // Só existe na reserva que veio do site (null na criada pelo portal).
+    public decimal? EstimatedTotalFromSite { get; set; }
+
+    public ReservationSource Source { get; set; }
     public bool IncludesColonialBreakfast { get; set; }
 
     public ReservationStatus Status { get; set; }
@@ -66,6 +73,13 @@ public class Reservation
         CancelledAt = now;
         return true;
     }
+}
+
+// De onde a reserva veio: pré-reserva do site ou cadastro do admin no portal (task 21).
+public enum ReservationSource
+{
+    Site,
+    Portal
 }
 
 public enum ReservationStatus

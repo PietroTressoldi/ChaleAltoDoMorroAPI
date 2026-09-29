@@ -28,7 +28,9 @@ public class SrvAvailability(AppDbContext db, IClock brazilClock)
     }
 
     /// <summary>Noites indisponíveis de hoje em diante, sem repetição e em ordem de data.</summary>
-    public async Task<List<DateOnly>> GetUnavailableNights(CancellationToken ct = default)
+    /// <param name="ignoreReservationId">Reserva que NÃO conta como ocupação: ao editar as datas de uma reserva
+    /// confirmada, ela não pode "bater com ela mesma".</param>
+    public async Task<List<DateOnly>> GetUnavailableNights(CancellationToken ct = default, Guid? ignoreReservationId = null)
     {
         var today = brazilClock.Today();
 
@@ -40,7 +42,8 @@ public class SrvAvailability(AppDbContext db, IClock brazilClock)
 
         // > today: reserva com check-out hoje não ocupa mais nenhuma noite.
         var confirmedStays = await db.Reservations
-            .Where(r => r.Status == ReservationStatus.Confirmed && r.CheckOut > today)
+            .Where(r => r.Status == ReservationStatus.Confirmed && r.CheckOut > today
+                        && (ignoreReservationId == null || r.Id != ignoreReservationId))
             .Select(r => new { r.CheckIn, r.CheckOut })
             .ToListAsync(ct);
 

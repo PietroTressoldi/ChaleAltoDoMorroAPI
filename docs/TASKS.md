@@ -39,7 +39,7 @@ A 13 é pequena e destrava o portal no navegador. O Livro Caixa (14 e 15) vem ce
 - [ ] 18 — Calendário do portal
 - [ ] 19 — Dashboard
 - [ ] 20 — Trocar senha
-- [ ] 21 — Admin: criar e editar reservas
+- [x] 21 — Admin: criar e editar reservas
 
 ---
 
@@ -730,13 +730,13 @@ acaba bloqueando datas "na mão" sem saber de quem é a reserva.
 - Reaproveitar a mesma transação e revalidação entre dois casos de uso.
 
 **Critérios de aceite**
-- [ ] Criar uma reserva `confirmed` pelo Scalar → as noites aparecem riscadas no site na hora.
-- [ ] Criar sexta → sábado (1 diária) pelo portal → ok. A mesma estadia pelo site continua `422`.
-- [ ] Criar ou editar sobre uma noite ocupada → `409` com a noite no `detail`.
-- [ ] `total` informado → gravado como veio, com `priceAdjusted: true` no detalhe. `total` nulo → igual ao calculado.
-- [ ] Editar as datas de uma confirmada para cima de outra confirmada → `409`. Editar uma cancelada → `409`.
-- [ ] CPF inválido ou ausente no hóspede 1 → `400`.
-- [ ] O JSON bate com o `CONTRATO_PORTAL.md`. Testes das regras novas passando.
+- [x] Criar uma reserva `confirmed` pelo Scalar → as noites aparecem riscadas no site na hora.
+- [x] Criar sexta → sábado (1 diária) pelo portal → ok. A mesma estadia pelo site continua `422`.
+- [x] Criar ou editar sobre uma noite ocupada → `409` com a noite no `detail`.
+- [x] `total` informado → gravado como veio, com `priceAdjusted: true` no detalhe. `total` nulo → igual ao calculado.
+- [x] Editar as datas de uma confirmada para cima de outra confirmada → `409`. Editar uma cancelada → `409`.
+- [x] CPF inválido ou ausente no hóspede 1 → `400`.
+- [x] O JSON bate com o `CONTRATO_PORTAL.md`. Testes das regras novas passando.
 
 **Armadilhas:**
 - No `PUT`, `total` nulo **recalcula**: se o portal não mandar o total atual, um desconto combinado some ao editar só o

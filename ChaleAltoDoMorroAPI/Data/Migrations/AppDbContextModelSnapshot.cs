@@ -223,6 +223,11 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                         .HasColumnType("character varying(2000)")
                         .HasColumnName("admin_notes");
 
+                    b.Property<decimal>("CalculatedTotal")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("calculated_total");
+
                     b.Property<DateTimeOffset?>("CancelledAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("cancelled_at");
@@ -254,7 +259,7 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<decimal>("EstimatedTotalFromSite")
+                    b.Property<decimal?>("EstimatedTotalFromSite")
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("estimated_total_from_site");
@@ -307,6 +312,12 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)")
                         .HasColumnName("package_name");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("source");
 
                     b.Property<string>("Status")
                         .IsRequired()
