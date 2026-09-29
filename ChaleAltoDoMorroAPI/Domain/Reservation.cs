@@ -28,6 +28,9 @@ public class Reservation
 
     public string? Observations { get; set; }
 
+    // Anotação interna do dono (só aparece no portal). Diferente de Observations, que é o que o hóspede escreveu.
+    public string? AdminNotes { get; set; }
+
     public Guid Guest1Id { get; set; }
     public Guest Guest1 { get; set; } = null!;
     public Guid? Guest2Id { get; set; }
@@ -37,6 +40,32 @@ public class Reservation
     // hóspede que já existe (senão quem soubesse o CPF de alguém trocaria o telefone dele).
     public string ContactPhone { get; set; } = string.Empty;
     public string? ContactEmail { get; set; }
+
+    // Transições de status: as regras ficam SÓ aqui, e o serviço nunca muda o Status direto.
+    //   Pending   → Confirmed
+    //   Pending   → Cancelled
+    //   Confirmed → Cancelled
+    // Qualquer outra (confirmar uma cancelada, cancelar duas vezes...) devolve false e nada muda.
+
+    public bool TryConfirm(DateTimeOffset now)
+    {
+        if (Status != ReservationStatus.Pending)
+            return false;
+
+        Status = ReservationStatus.Confirmed;
+        ConfirmedAt = now;
+        return true;
+    }
+
+    public bool TryCancel(DateTimeOffset now)
+    {
+        if (Status == ReservationStatus.Cancelled)
+            return false;
+
+        Status = ReservationStatus.Cancelled;
+        CancelledAt = now;
+        return true;
+    }
 }
 
 public enum ReservationStatus

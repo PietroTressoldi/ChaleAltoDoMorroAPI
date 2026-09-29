@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace ChaleAltoDoMorroAPI.Services;
 
 // Gestão das reservas no portal (task 9). A criação pública continua no SrvReservation.
-public class SrvAdminReservation(AppDbContext db, IClock brazilClock)
+public class SrvAdminReservation(AppDbContext db, SrvAvailability srvAvailability, IClock brazilClock, TimeProvider timeProvider)
 {
     // Um mapeamento só para a lista e para o detalhe. Como Expression, o EF traduz em SELECT com JOIN
     // (r.Guest1.Name vira JOIN em guests, sem Include). Compilado, serve para mapear a entidade já carregada.
@@ -70,6 +70,7 @@ public class SrvAdminReservation(AppDbContext db, IClock brazilClock)
             Guest2 = reservation.Guest2 is null ? null : ToGuestDto(reservation.Guest2),
             ContactEmail = reservation.ContactEmail,
             Observations = reservation.Observations,
+            AdminNotes = reservation.AdminNotes,
             PackageId = reservation.PackageId,
             KitId = reservation.KitId,
             KitPrice = reservation.KitPrice,
@@ -79,6 +80,67 @@ public class SrvAdminReservation(AppDbContext db, IClock brazilClock)
             NightsBreakdown = await GetNightsBreakdown(reservation, ct)
         });
     }
+
+    public async Task<AdminResult<ReservationDetailDto>> Confirm(Guid id, CancellationToken ct = default)
+    {
+        var reservation = await db.Reservations.FirstOrDefaultAsync(r => r.Id == id, ct);
+        if (reservation is null)
+            return new NotFound<ReservationDetailDto>("Reserva não encontrada.");
+
+        if (reservation.Status != ReservationStatus.Pending)
+            return new Conflict<ReservationDetailDto>($"Só dá para confirmar uma reserva pendente. Esta está {StatusText(reservation.Status)}.");
+
+        // Revalida: outra reserva pode ter sido confirmada nessas datas depois que esta chegou.
+        // Esta reserva ainda está pendente, então as noites dela não entram na conta (não "bate com ela mesma").
+        var unavailable = (await srvAvailability.GetUnavailableNights(ct)).ToHashSet();
+        var takenNights = BookingRules.Nights(reservation.CheckIn, reservation.CheckOut)
+            .Where(unavailable.Contains)
+            .ToList();
+
+        if (takenNights.Count > 0)
+            return new Conflict<ReservationDetailDto>(
+                $"Não dá para confirmar: a(s) noite(s) {string.Join(", ", takenNights.Select(n => n.ToString("dd/MM/yyyy")))} " +
+                "já está(ão) bloqueada(s) ou com outra reserva confirmada.");
+
+        reservation.TryConfirm(timeProvider.GetUtcNow());
+        await db.SaveChangesAsync(ct);
+
+        return await Get(id, ct);
+    }
+
+    // Cancelar libera as noites sozinho: a disponibilidade só conta reservas confirmadas.
+    public async Task<AdminResult<ReservationDetailDto>> Cancel(Guid id, CancellationToken ct = default)
+    {
+        var reservation = await db.Reservations.FirstOrDefaultAsync(r => r.Id == id, ct);
+        if (reservation is null)
+            return new NotFound<ReservationDetailDto>("Reserva não encontrada.");
+
+        if (!reservation.TryCancel(timeProvider.GetUtcNow()))
+            return new Conflict<ReservationDetailDto>("Esta reserva já está cancelada.");
+
+        await db.SaveChangesAsync(ct);
+
+        return await Get(id, ct);
+    }
+
+    public async Task<AdminResult<ReservationDetailDto>> UpdateNotes(Guid id, UpdateReservationNotesRequest request, CancellationToken ct = default)
+    {
+        var reservation = await db.Reservations.FirstOrDefaultAsync(r => r.Id == id, ct);
+        if (reservation is null)
+            return new NotFound<ReservationDetailDto>("Reserva não encontrada.");
+
+        reservation.AdminNotes = string.IsNullOrWhiteSpace(request.AdminNotes) ? null : request.AdminNotes.Trim();
+        await db.SaveChangesAsync(ct);
+
+        return await Get(id, ct);
+    }
+
+    private static string StatusText(ReservationStatus status) => status switch
+    {
+        ReservationStatus.Pending => "pendente",
+        ReservationStatus.Confirmed => "confirmada",
+        _ => "cancelada"
+    };
 
     // Nome do hóspede 1 ou 2, ou telefone. ILike = LIKE sem diferenciar maiúsculas, feito pelo Postgres
     // (ToLower() em C# impediria o uso de índice e erraria em alguns caracteres).

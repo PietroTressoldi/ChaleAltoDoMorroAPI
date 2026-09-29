@@ -43,6 +43,11 @@ public class ReservationQuery : IValidatableObject
     }
 }
 
+// ---------- Entrada ----------
+
+// PATCH /api/admin/reservations/{id}. Texto vazio apaga a anotação.
+public record UpdateReservationNotesRequest([StringLength(2000)] string? AdminNotes);
+
 // ---------- Saída ----------
 
 // Lista: sem CPF, sem e-mail. Só o que a tabela do portal mostra.
@@ -77,6 +82,7 @@ public record ReservationDetailDto : ReservationListItemDto
     public GuestDetailDto? Guest2 { get; init; }
     public string? ContactEmail { get; init; }
     public string? Observations { get; init; }
+    public string? AdminNotes { get; init; }
     public Guid? PackageId { get; init; }
     public Guid? KitId { get; init; }
     public decimal? KitPrice { get; init; }

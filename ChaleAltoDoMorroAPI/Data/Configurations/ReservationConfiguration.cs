@@ -28,6 +28,9 @@ public class ReservationConfiguration : IEntityTypeConfiguration<Reservation>
         builder.Property(reservation => reservation.Observations)
             .HasMaxLength(1000);
 
+        builder.Property(reservation => reservation.AdminNotes)
+            .HasMaxLength(2000);
+
         // Snapshot do pacote: o nome fica gravado mesmo que o pacote mude ou seja apagado depois.
         builder.Property(reservation => reservation.PackageName)
             .HasMaxLength(120);
