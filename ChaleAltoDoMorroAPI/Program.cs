@@ -127,6 +127,7 @@ builder.Services.AddScoped<SrvPricing>();
 builder.Services.AddScoped<SrvPackage>();
 builder.Services.AddScoped<SrvKit>();
 builder.Services.AddScoped<SrvBlockedDate>();
+builder.Services.AddScoped<SrvAdminReservation>();
 
 
 var app = builder.Build();
