@@ -3,7 +3,7 @@ using ChaleAltoDoMorroAPI.Dtos;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace ChaleAltoDoMorroAPI.Controllers;
+namespace ChaleAltoDoMorroAPI.Controllers.Public;
 
 // A rota é /api/extras porque é o nome que o site usa (contrato); no domínio a entidade é Kit.
 [Route("api/extras")]

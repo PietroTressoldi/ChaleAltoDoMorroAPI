@@ -4,7 +4,7 @@ using ChaleAltoDoMorroAPI.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace ChaleAltoDoMorroAPI.Controllers;
+namespace ChaleAltoDoMorroAPI.Controllers.Public;
 
 [Route("api/packages")]
 [ApiController]

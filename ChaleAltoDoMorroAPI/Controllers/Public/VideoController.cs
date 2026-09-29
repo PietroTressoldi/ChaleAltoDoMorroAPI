@@ -3,7 +3,7 @@ using ChaleAltoDoMorroAPI.Dtos;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace ChaleAltoDoMorroAPI.Controllers;
+namespace ChaleAltoDoMorroAPI.Controllers.Public;
 
 [Route("api/videos")]
 [ApiController]

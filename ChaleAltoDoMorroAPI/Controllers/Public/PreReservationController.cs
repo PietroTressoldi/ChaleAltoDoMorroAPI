@@ -3,7 +3,7 @@ using ChaleAltoDoMorroAPI.Dtos;
 using ChaleAltoDoMorroAPI.Services;
 using Microsoft.AspNetCore.Mvc;
 
-namespace ChaleAltoDoMorroAPI.Controllers;
+namespace ChaleAltoDoMorroAPI.Controllers.Public;
 
 // Controller fino: a regra fica no SrvReservation; aqui só se traduz o resultado em HTTP.
 // Campos inválidos nem chegam aqui: o [ApiController] devolve 400 (ValidationProblemDetails) sozinho.

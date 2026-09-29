@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 
-namespace ChaleAltoDoMorroAPI.Controllers;
+namespace ChaleAltoDoMorroAPI.Controllers.Public;
 
 [Route("/health")]
 [ApiController]
