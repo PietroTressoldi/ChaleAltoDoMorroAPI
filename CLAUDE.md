@@ -99,8 +99,11 @@ docs/               CONTRATO_SITE.md, CONTRATO_PORTAL.md, REGRAS_RESERVA.md, REG
   com valor global e snapshot por reserva na confirmação. Muda só a ocupação no `SrvAvailability`, não as noites cobradas (detalhes em
   `docs/REGRAS_RESERVA.md`, seção "Folga entre hóspedes").
 - **Livro Caixa** (tasks 14 e 15): um livro por mês com entradas e saídas. O resultado é o **caixa líquido** do mês
-  (entradas − saídas), **sem saldo inicial nem acumulado**. Tem despesas fixas, fecha e reabre o mês, e a reserva confirmada
-  pode ser lançada como entrada. Regras em `docs/REGRAS_CAIXA.md`.
+  (entradas − saídas), **sem saldo inicial nem acumulado**. Tem despesas fixas e fecha e reabre o mês. Os recebimentos
+  das reservas são lançados **à mão** (o pagamento é 50% no sinal e 50% no check-in, e as duas partes podem cair em meses
+  diferentes). Regras em `docs/REGRAS_CAIXA.md`.
+- **Reserva criada pelo portal** (task 21): o admin cria e edita reservas com preço livre e escolhe o status inicial.
+  Só a disponibilidade é validada. O hóspede 1 continua com CPF obrigatório.
 - **Nenhuma foto/vídeo com hóspedes** na galeria (lembrar no upload do portal).
 
 ## Comandos úteis

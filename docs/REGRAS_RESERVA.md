@@ -78,6 +78,19 @@ O padrão é 0/0, que é exatamente o comportamento de hoje.
 
 ---
 
+## Reserva criada ou editada pelo portal (task 21)
+1. O admin pode criar a reserva já `confirmed` ou `pending`.
+2. Só vale a **disponibilidade**: nenhuma noite da estadia pode estar bloqueada nem ocupada por outra reserva
+   confirmada (com a folga da task 16, quando existir). As outras regras de validação da estadia **não** valem para o admin.
+3. `checkOut > checkIn` continua obrigatório.
+4. Preço: `total` informado vale como está (desconto ou combinado). Sem `total`, usa o `Quote`. `CalculatedTotal` sempre
+   guarda o `Quote`. Se não há preço cadastrado e o `total` não veio → `422`.
+5. Uma estadia que toca um pacote só em parte é cobrada noite a noite pelo `PriceNight` (a noite do pacote vale o preço
+   do pacote dividido pelas diárias). Se as datas são exatamente as do pacote, vale o preço fechado do pacote.
+6. A cesta de café colonial segue a regra de sempre (a partir de 2 diárias).
+7. Editar uma reserva cancelada → `409`. Editar as datas de uma confirmada revalida a disponibilidade **ignorando a
+   própria reserva**.
+
 # Casos de teste (portar para xUnit)
 
 ## Cenário de referência
@@ -201,3 +214,20 @@ Mesmo cenário de referência ("hoje" = 01/10/2026). Reserva confirmada **R**: 0
 
 Confirmação (task 9) com o global 0/1: uma pendente P de 11/10 → 12/10, com R já confirmada (0/1) → `409` (P invade a
 folga de R). Se R tivesse sido confirmada com `bufferAfterNights: 0` → ok.
+
+## Reserva criada ou editada pelo portal (task 21)
+Com o cenário de referência (preços 790 / 894,50, 14/10 e 24/10 bloqueadas, Finados de 30/10 a 02/11 por 2.490).
+
+| Caso | Entrada | Esperado |
+|---|---|---|
+| sexta → sábado (1 diária) | 09/10 → 10/10, sem `total` | ok, total 894,50, sem cesta |
+| sobre noite bloqueada | 13/10 → 15/10 | 409 (14/10) |
+| sobre reserva confirmada | outra confirmada em 09/10 → 11/10; nova 10/10 → 12/10 | 409 (10/10) |
+| datas no passado | 20/09 → 22/09 | ok (registro de reserva antiga) |
+| pacote em parte | 31/10 → 01/11 | ok, 830 (2.490 / 3) |
+| pacote inteiro | 30/10 → 02/11 | ok, 2.490 |
+| desconto | 09/10 → 11/10, `total` 1.600 | total 1.600, calculado 1.789, `priceAdjusted` |
+| sem preço cadastrado | sem regra weekday, sem `total` | 422 |
+| sem preço cadastrado, com total | sem regra weekday, `total` 700 | ok, 700 |
+| editar cancelada | qualquer | 409 |
+| editar confirmada 09→11 para 10→12 | sem outras reservas | ok (ignora a si mesma) |

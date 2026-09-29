@@ -14,7 +14,7 @@ Referências:
 
 ## Ordem sugerida
 O número da task é só um nome. A **ordem** abaixo segue o que o portal precisa primeiro:
-**13 → 9 → 14 → 15 → 16 → 17 → 18 → 19 → 20 → 10 → 11 → 12.**
+**13 → 9 → 21 → 14 → 15 → 16 → 17 → 18 → 19 → 20 → 10 → 11 → 12.**
 A 13 é pequena e destrava o portal no navegador. O Livro Caixa (14 e 15) vem cedo porque é a tela nova mais usada no dia a dia.
 
 ## Progresso
@@ -33,12 +33,13 @@ A 13 é pequena e destrava o portal no navegador. O Livro Caixa (14 e 15) vem ce
 - [ ] 12 — Preparar o deploy
 - [ ] 13 — CORS do portal
 - [ ] 14 — Livro Caixa: domínio, regras puras e migration
-- [ ] 15 — Livro Caixa: rotas, despesas fixas e "lançar reserva no caixa"
+- [ ] 15 — Livro Caixa: rotas e despesas fixas
 - [ ] 16 — Folga entre hóspedes
 - [ ] 17 — Hóspedes
 - [ ] 18 — Calendário do portal
 - [ ] 19 — Dashboard
 - [ ] 20 — Trocar senha
+- [ ] 21 — Admin: criar e editar reservas
 
 ---
 
@@ -511,7 +512,7 @@ dono decide com base em número errado. Com a regra pura e testada, a API e o po
    - `CashBook`: `Id` (int), `Year`, `Month`, `Status` (enum `Open/Closed`), `Notes?`, `CreatedAt`, `UpdatedAt`,
      `ClosedAt?` e a coleção `Transactions`.
    - `CashTransaction`: `Id` (Guid), `CashBookId`, `Date` (DateOnly), `Type` (enum `Income/Expense`), `Amount` (decimal),
-     `Description`, `CategoryId`, `PaymentMethod` (enum `Pix/Cash/Card/Transfer/Other`), `Notes?`, `ReservationId?`,
+     `Description`, `CategoryId`, `PaymentMethod` (enum `Pix/Cash/Card/Transfer/Other`), `Notes?`,
      `RecurringExpenseId?`, `CreatedAt`, `UpdatedAt`.
    - `CashCategory`: `Id` (int), `Name`, `Type`, `Color`, `Icon`, `IsActive`, `Order`.
    - `RecurringExpense`: `Id` (int), `Description`, `Amount`, `CategoryId`, `DayOfMonth` (1–31), `PaymentMethod`,
@@ -519,8 +520,8 @@ dono decide com base em número errado. Com a regra pura e testada, a API e o po
 2. Configurações em `Data/Configurations/`:
    - `numeric(12,2)` nos valores e enums como texto.
    - Índice único em `(Year, Month)`.
-   - Índice único **filtrado** em `(CashBookId, RecurringExpenseId)` e outro em `ReservationId`, os dois com `WHERE ... IS NOT NULL`.
-   - `OnDelete(SetNull)` para `RecurringExpenseId` e `ReservationId`, e `Restrict` para `CategoryId`.
+   - Índice único **filtrado** em `(CashBookId, RecurringExpenseId)`, com `WHERE ... IS NOT NULL`.
+   - `OnDelete(SetNull)` para `RecurringExpenseId` e `Restrict` para `CategoryId`.
 3. Seed das categorias padrão (tabela da regra 19), em **todos os ambientes**, só quando a tabela estiver vazia.
 4. `Domain/CashBookRules` (pura):
    - `Summarize(transações)` → income, expense, net, byCategory e daily.
@@ -547,7 +548,7 @@ dono decide com base em número errado. Com a regra pura e testada, a API e o po
 
 ---
 
-## Task 15 — Livro Caixa: rotas, despesas fixas e "lançar reserva no caixa"
+## Task 15 — Livro Caixa: rotas e despesas fixas
 
 **Objetivo:** expor tudo do caixa para o portal, exatamente como em `CONTRATO_PORTAL.md`, seção "Livro Caixa".
 
@@ -563,9 +564,7 @@ dono decide com base em número errado. Com a regra pura e testada, a API e o po
    - apagar, só quando vazio.
 3. Transações: criar, editar e apagar, respeitando o livro fechado (`409`).
 4. Categorias: CRUD, em que "apagar" vira "desativar" quando a categoria está em uso. Despesas fixas: CRUD.
-5. `POST /api/admin/reservations/{id}/cash-entry`, seguindo as regras 20–24. Depende da task 9, que traz a reserva confirmada.
-6. Passar a preencher o `cashTransactionId` na lista e no detalhe de reservas da task 9.
-7. Use o `AdminResult` para responder `404`, `409` e `422` com mensagens em PT-BR, que o portal mostra direto.
+5. Use o `AdminResult` para responder `404`, `409` e `422` com mensagens em PT-BR, que o portal mostra direto.
 
 **Conceitos novos:**
 - Rotas com mais de um parâmetro (`{year:int}/{month:int:range(1,12)}`).
@@ -573,8 +572,7 @@ dono decide com base em número errado. Com a regra pura e testada, a API e o po
 - Como decidir o que é `409` (estado) e o que é `422` (regra).
 
 **Critérios de aceite**
-- [ ] Os casos HTTP de `REGRAS_CAIXA.md` (livro fechado, mês duplicado, categoria de tipo errado, lançar reserva duas
-      vezes...) devolvem o status certo.
+- [ ] Os casos HTTP de `REGRAS_CAIXA.md` (livro fechado, mês duplicado, categoria de tipo errado...) devolvem o status certo.
 - [ ] Criar outubro com `applyRecurring: true` já traz as despesas fixas ativas.
 - [ ] O JSON bate campo a campo com o `CONTRATO_PORTAL.md`.
 - [ ] Tudo testável pelo Scalar.
@@ -695,6 +693,58 @@ hábito importa.
 
 ---
 
+## Task 21 — Admin: criar e editar reservas
+
+**Objetivo:** o dono cadastra pelo portal as reservas fechadas direto no WhatsApp ou por telefone, sem passar pela
+pré-reserva do site, e edita qualquer reserva que ainda não foi cancelada. O preço pode ser **diferente do calculado**
+(desconto informal, cortesia, outros combinados).
+
+**Por que:** nem todo cliente passa pelo site. Sem esta rota, o calendário e o dashboard ficam incompletos, e o dono
+acaba bloqueando datas "na mão" sem saber de quem é a reserva.
+
+**O que fazer** (formatos em `CONTRATO_PORTAL.md`, seção "Reservas"; regras em `REGRAS_RESERVA.md`, seção
+"Reserva criada ou editada pelo portal")
+1. `POST /api/admin/reservations` → `201 ReservationDetailDto` (com `Location`).
+   - O corpo escolhe o `status` inicial: `pending` ou `confirmed`.
+   - **Só a disponibilidade é validada**, contra reservas confirmadas e noites bloqueadas. O mínimo de diárias, o pacote
+     fechado e as datas no passado ficam liberados para o admin.
+   - Hóspede 1 com nome, **CPF** e telefone obrigatórios, igual ao site. O hóspede 2 é opcional.
+   - Preço: `total` informado → vale ele. `total` nulo → calculado pelo `BookingRules`. Grava sempre também o
+     `CalculatedTotal`, para o portal mostrar "preço ajustado".
+2. `PUT /api/admin/reservations/{id}` → `200 ReservationDetailDto`. Edita **tudo**: datas, hóspedes, kit, preço e notas.
+   - Reserva cancelada → `409`. O status não muda por aqui: para isso existem as rotas de confirmar e cancelar.
+   - Mudou as datas de uma reserva **confirmada** → revalida a disponibilidade ignorando a própria reserva, dentro da mesma
+     transação da confirmação (task 9, Parte C).
+3. Hóspedes: a rota é autenticada, então **pode atualizar o cadastro** de um hóspede que já existe (achado pelo CPF).
+   A rota pública continua sem sobrescrever nada.
+4. Migration `ReservaPeloPortal`:
+   - `Source` (enum `Site/Portal`, texto no banco). As reservas antigas ficam `Site`.
+   - `CalculatedTotal` (decimal). Nas reservas antigas, recebe o próprio `Total`.
+   - `EstimatedTotalFromSite` passa a aceitar `null`, porque a reserva do portal não tem esse valor.
+5. As regras novas ficam no `BookingRules` ou numa classe pura irmã, com os testes da tabela de `REGRAS_RESERVA.md`.
+
+**Conceitos novos:**
+- `PUT` como substituição completa: o portal manda o formulário inteiro.
+- Migration que altera coluna e preenche dado existente (`migrationBuilder.Sql`).
+- Reaproveitar a mesma transação e revalidação entre dois casos de uso.
+
+**Critérios de aceite**
+- [ ] Criar uma reserva `confirmed` pelo Scalar → as noites aparecem riscadas no site na hora.
+- [ ] Criar sexta → sábado (1 diária) pelo portal → ok. A mesma estadia pelo site continua `422`.
+- [ ] Criar ou editar sobre uma noite ocupada → `409` com a noite no `detail`.
+- [ ] `total` informado → gravado como veio, com `priceAdjusted: true` no detalhe. `total` nulo → igual ao calculado.
+- [ ] Editar as datas de uma confirmada para cima de outra confirmada → `409`. Editar uma cancelada → `409`.
+- [ ] CPF inválido ou ausente no hóspede 1 → `400`.
+- [ ] O JSON bate com o `CONTRATO_PORTAL.md`. Testes das regras novas passando.
+
+**Armadilhas:**
+- No `PUT`, `total` nulo **recalcula**: se o portal não mandar o total atual, um desconto combinado some ao editar só o
+  telefone. O portal precisa mandar o valor que está na tela.
+- Esquecer de atualizar o `ContactPhone` (snapshot) quando o telefone do hóspede 1 muda.
+- `IncludesColonialBreakfast` depende do número de diárias: recalcule ao mudar as datas.
+
+---
+
 ## Ideias para o futuro (fora do escopo atual)
 
 - **Folga entre hóspedes**: entrou na v1 como **task 16**. A decisão tomada foi "só entre reservas" (regra 5 em
@@ -705,3 +755,9 @@ hábito importa.
   `REGRAS_CAIXA.md`).
 - **Anexos no caixa** (foto do comprovante ou da nota) usando o `IFileStorage` da task 10.
 - **Papéis** (dono × ajudante): hoje qualquer usuário logado pode tudo.
+- **Pagamento em duas partes (sinal + restante)**: hoje o combinado com o hóspede é **50% para confirmar e 50% no
+  check-in**. A ideia é o portal mostrar, em cada reserva, quanto já foi **pago** e quanto **falta**. Um caminho simples:
+  uma entidade `ReservationPayment` (valor, data, forma de pagamento, tipo `deposit`/`balance`) e os campos calculados
+  `amountPaid` e `amountDue` no detalhe e na lista, com filtro "com saldo em aberto". Cada pagamento poderia gerar a sua
+  entrada no Livro Caixa, no mês em que o dinheiro entrou. Por causa desse esquema, o "lançar reserva no caixa" saiu da
+  v1: por enquanto, os recebimentos são lançados à mão no caixa.

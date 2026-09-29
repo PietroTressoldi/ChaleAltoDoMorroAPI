@@ -132,13 +132,13 @@ Regra do `when` (com "hoje" no fuso de Brasília):
     "total": 1968, "includesColonialBreakfast": true,
     "createdAt": "2026-10-01T14:32:00-03:00", "confirmedAt": null, "cancelledAt": null,
     "bufferBeforeNights": null, "bufferAfterNights": null,
-    "cashTransactionId": null
+    "source": "site"
   }],
   "page": 1, "pageSize": 20, "totalCount": 1
 }
 ```
 - `bufferBeforeNights` e `bufferAfterNights` só são preenchidos na confirmação (task 16).
-- `cashTransactionId` só é preenchido depois de "lançar no caixa" (task 15).
+- `source`: `site` (pré-reserva do site) ou `portal` (criada pelo admin, task 21).
 
 ### `GET /api/admin/reservations/{id}` → `ReservationDetailDto`
 Tem tudo o que está na lista, mais:
@@ -151,6 +151,7 @@ Tem tudo o que está na lista, mais:
   "adminNotes": "Pediu decoração extra",
   "packageId": null, "kitId": "8a1b...", "kitPrice": 179,
   "nightsTotal": 1789,
+  "calculatedTotal": 1968, "priceAdjusted": false,
   "estimatedTotalFromSite": 1968, "siteTotalDiverged": false,
   "nightsBreakdown": [
     { "date": "2026-10-09", "kind": "weekend", "price": 894.5 },
@@ -160,6 +161,9 @@ Tem tudo o que está na lista, mais:
 ```
 `nightsBreakdown` é recalculado com o `BookingRules` a partir dos preços atuais e serve só de referência. Os valores que
 valem são os gravados na reserva (snapshot).
+- `calculatedTotal`: o total que o `BookingRules` calculou quando a reserva foi criada ou editada. `priceAdjusted` é
+  `total != calculatedTotal` (desconto ou outro combinado do admin).
+- `estimatedTotalFromSite` é `null` nas reservas criadas pelo portal, e aí `siteTotalDiverged` é `false`.
 
 ### `POST /api/admin/reservations/{id}/confirm`
 ```json
@@ -179,16 +183,31 @@ Vale para reservas `pending` ou `confirmed` → `200 ReservationDetailDto` · `4
 ```
 → `200 ReservationDetailDto`. As observações do hóspede (`observations`) não são editáveis.
 
-### `POST /api/admin/reservations/{id}/cash-entry` (🆕 task 15)
-Lança o valor da reserva como **entrada** no Livro Caixa.
+### `POST /api/admin/reservations` (🆕 task 21)
+Reserva criada pelo admin, sem passar pela pré-reserva do site.
 ```json
-{ "date": "2026-10-09", "paymentMethod": "pix", "categoryId": 1 }
+{
+  "status": "confirmed",
+  "checkIn": "2026-10-09", "checkOut": "2026-10-11",
+  "guest1": { "name": "Ana Souza", "cpf": "52998224725", "phone": "51989098631", "email": null },
+  "guest2": { "name": "Bruno Lima", "cpf": null, "phone": null, "email": null },
+  "kitId": "8a1b...",
+  "total": 1800,
+  "adminNotes": "Fechado pelo WhatsApp, desconto de aniversário"
+}
 ```
-- `date` é opcional; o padrão é o check-in.
-- `categoryId` é opcional; o padrão é a categoria "Hospedagem".
-- → `201 CashTransactionDto`.
-- `409` quando a reserva não está confirmada, quando já foi lançada ou quando o mês está fechado.
-- Detalhes em `REGRAS_CAIXA.md`.
+- `status`: `pending` ou `confirmed`.
+- `guest1`: `name`, `cpf` e `phone` obrigatórios, com as mesmas validações do site. `guest2` é opcional.
+- `total`: opcional. `null` = o total calculado pelo `BookingRules`. Com valor (`>= 0`), vale o informado.
+- Só a disponibilidade é validada. Mínimo de diárias, pacote fechado e datas no passado ficam liberados.
+- → `201 ReservationDetailDto` · `400` formato · `409` noite ocupada (o `detail` diz qual) · `422` sem preço cadastrado
+  e sem `total` informado.
+
+### `PUT /api/admin/reservations/{id}` (🆕 task 21)
+Mesmo corpo do `POST`, **sem** `status`. Substitui tudo: datas, hóspedes, kit, total e notas.
+- `total: null` **recalcula** o preço. Para manter um valor combinado, o portal manda o total que está na tela.
+- → `200 ReservationDetailDto` · `404` · `409` se a reserva está cancelada ou se as novas datas batem com outra
+  reserva confirmada.
 
 ---
 
@@ -346,7 +365,7 @@ Um livro por mês. Ele registra **entradas** e **saídas**, e o resultado é o *
 { "id": "t9...", "cashBookId": 12, "date": "2026-10-05", "type": "expense", "amount": 260,
   "description": "Conta de luz", "categoryId": 5, "categoryName": "Energia", "categoryColor": "#e8c97a",
   "categoryIcon": "zap", "paymentMethod": "pix", "notes": null,
-  "reservationId": null, "recurringExpenseId": 3,
+  "recurringExpenseId": 3,
   "createdAt": "2026-10-05T09:10:00-03:00", "updatedAt": "2026-10-05T09:10:00-03:00" }
 ```
 - `type` aceita `income` (entrada) ou `expense` (saída).

@@ -76,19 +76,10 @@ Assim como o `BookingRules`, as contas (resumo, caixa líquido, data da despesa 
     | Saída | Marketing | `megaphone` | `#c47a5a` |
     | Saída | Outras saídas | `circle-ellipsis` | `#7c7268` |
 
-### Lançar reserva no caixa (`POST /api/admin/reservations/{id}/cash-entry`)
-20. Só vale para reserva **confirmada** → `409` caso contrário.
-21. Uma reserva só pode ser lançada **uma vez**, enquanto a transação existir → `409` caso contrário.
-    Para isso, use um índice único em `ReservationId`, filtrado por não nulo.
-22. Os valores padrão da entrada lançada:
-    - **Valor**: o `Total` da reserva.
-    - **Data**: o check-in (ou a `date` enviada).
-    - **Descrição**: `"Reserva — {nome do hóspede 1} ({dd/MM}–{dd/MM})"`.
-    - **Categoria**: "Hospedagem".
-    - **Forma de pagamento**: a enviada.
-23. Se o mês da data não tem livro, ele é **criado** (sem aplicar despesas fixas). Se o livro do mês está fechado → `409`.
-24. Cancelar uma reserva já lançada **não apaga** a transação: dinheiro recebido é fato. O portal mostra um aviso
-    ("Esta reserva tem uma entrada no caixa") para o dono decidir se apaga ou lança um estorno.
+### Recebimentos de reservas
+20–24. *(Removidas da v1.)* O "lançar reserva no caixa" saiu porque o pagamento é em duas partes (50% para confirmar e
+50% no check-in), que podem cair em meses diferentes. Por enquanto, cada recebimento é lançado **à mão** como entrada,
+na categoria "Hospedagem". A ideia de registrar os pagamentos na reserva está em "Ideias para o futuro" (`TASKS.md`).
 
 ### Resumo e visão anual
 25. O **resumo do livro** traz:
@@ -172,12 +163,3 @@ Jardinagem (inativa).
 | aplicar em livro fechado | 409 |
 | criar o livro 2026-12 com `applyRecurring = false` | livro vazio |
 
-## Lançar reserva no caixa
-| Caso | Esperado |
-|---|---|
-| reserva confirmada de 1.968, check-in 2026-10-09 | entrada 1.968 em 09/10 no livro de outubro, categoria Hospedagem, `reservationId` preenchido |
-| lançar a mesma reserva de novo | 409 |
-| reserva pendente ou cancelada | 409 |
-| mês sem livro | livro criado sem despesas fixas, e a entrada lançada |
-| livro do mês fechado | 409 |
-| cancelar reserva lançada | a transação continua; o detalhe da reserva continua com `cashTransactionId` |
