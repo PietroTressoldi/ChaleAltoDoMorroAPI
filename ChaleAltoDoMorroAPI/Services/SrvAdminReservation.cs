@@ -83,6 +83,13 @@ public class SrvAdminReservation(AppDbContext db, SrvAvailability srvAvailabilit
 
     public async Task<AdminResult<ReservationDetailDto>> Confirm(Guid id, CancellationToken ct = default)
     {
+        // Dois cliques ao mesmo tempo em reservas com a mesma noite: sem o cadeado, os dois leriam "livre" antes de
+        // qualquer um gravar, e as duas seriam confirmadas. Com ele, o segundo espera o primeiro terminar e aí lê de novo.
+        // Qualquer "return" antes do CommitAsync desfaz a transação (o "await using" chama Dispose → rollback).
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        await srvAvailability.LockCalendar(ct);
+
+        // Lida DEPOIS do cadeado: se alguém cancelou esta reserva enquanto esperávamos, já enxergamos.
         var reservation = await db.Reservations.FirstOrDefaultAsync(r => r.Id == id, ct);
         if (reservation is null)
             return new NotFound<ReservationDetailDto>("Reserva não encontrada.");
@@ -104,6 +111,7 @@ public class SrvAdminReservation(AppDbContext db, SrvAvailability srvAvailabilit
 
         reservation.TryConfirm(timeProvider.GetUtcNow());
         await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct); // solta o cadeado
 
         return await Get(id, ct);
     }
@@ -111,6 +119,11 @@ public class SrvAdminReservation(AppDbContext db, SrvAvailability srvAvailabilit
     // Cancelar libera as noites sozinho: a disponibilidade só conta reservas confirmadas.
     public async Task<AdminResult<ReservationDetailDto>> Cancel(Guid id, CancellationToken ct = default)
     {
+        // Mesmo cadeado do Confirm: sem ele, "cancelar" e "confirmar" a MESMA reserva ao mesmo tempo poderiam
+        // terminar com o confirmar gravando por cima do cancelar (reserva cancelada que volta a ocupar as noites).
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        await srvAvailability.LockCalendar(ct);
+
         var reservation = await db.Reservations.FirstOrDefaultAsync(r => r.Id == id, ct);
         if (reservation is null)
             return new NotFound<ReservationDetailDto>("Reserva não encontrada.");
@@ -119,6 +132,7 @@ public class SrvAdminReservation(AppDbContext db, SrvAvailability srvAvailabilit
             return new Conflict<ReservationDetailDto>("Esta reserva já está cancelada.");
 
         await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
 
         return await Get(id, ct);
     }

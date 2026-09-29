@@ -27,7 +27,7 @@ A 13 é pequena e destrava o portal no navegador. O Livro Caixa (14 e 15) vem ce
 - [x] 6 — Bloqueios = manuais + reservas confirmadas
 - [x] 7 — Login do portal: Identity + JWT
 - [x] 8 — Admin: preços, pacotes, kits e bloqueios
-- [ ] 9 — Admin: reservas (pré-reservas e confirmadas)
+- [x] 9 — Admin: reservas (pré-reservas e confirmadas)
 - [ ] 10 — Galeria e vídeos com upload
 - [ ] 11 — Robustez: erros, rate limiting, logs
 - [ ] 12 — Preparar o deploy
@@ -398,12 +398,13 @@ distinção entre as duas telas onde ela faz sentido: no portal.
 simples; transações no EF Core (`Database.BeginTransactionAsync`); condição de corrida.
 
 **Critérios de aceite**
-- [ ] Os filtros de status, when, período e busca funcionam combinados. `sort` inválido → `400`.
-- [ ] Confirmar → as noites aparecem bloqueadas no site. Cancelar → as noites somem.
-- [ ] Confirmar duas reservas que se sobrepõem → a segunda recebe `409`.
-- [ ] Confirmar uma reserva já cancelada → `409` (transição inválida).
-- [ ] O JSON da lista e do detalhe bate campo a campo com o `CONTRATO_PORTAL.md`. Na lista, o CPF **não** sai.
-- [ ] Testes unitários das transições de status e do filtro `when`, com "hoje" fixo.
+- [x] Os filtros de status, when, período e busca funcionam combinados. `sort` inválido → `400`.
+- [x] Confirmar → as noites aparecem bloqueadas no site. Cancelar → as noites somem.
+- [x] Confirmar duas reservas que se sobrepõem → a segunda recebe `409`.
+- [x] Confirmar uma reserva já cancelada → `409` (transição inválida).
+- [x] O JSON da lista e do detalhe bate campo a campo com o `CONTRATO_PORTAL.md`. Na lista, o CPF **não** sai.
+      (`bufferBeforeNights`/`bufferAfterNights` entram na task 16 e `source` na task 21.)
+- [x] Testes unitários das transições de status e do filtro `when`, com "hoje" fixo.
 
 **Armadilhas:** `Skip` sem `OrderBy` gera paginação instável; esquecer o `AsNoTracking`; `when` calculado com
 `DateTime.Today` em vez do `IClock`; `search` com `ToLower()` (no Postgres, use `EF.Functions.ILike` e, se quiser

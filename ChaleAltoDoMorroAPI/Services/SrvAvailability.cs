@@ -9,6 +9,24 @@ namespace ChaleAltoDoMorroAPI.Services;
 // As noites das reservas são calculadas na hora (nada é gravado em BlockedDate), então cancelar libera sozinho.
 public class SrvAvailability(AppDbContext db, IClock brazilClock)
 {
+    // Número fixo que identifica o "cadeado do calendário" no Postgres. Qualquer valor serve,
+    // desde que todo mundo que mexe na ocupação use o MESMO.
+    private const long CalendarLockKey = 20260928;
+
+    /// <summary>
+    /// Trava o calendário até o fim da transação atual (pg_advisory_xact_lock). Quem chegar depois ESPERA na fila
+    /// e, quando entrar, já enxerga o que o anterior gravou. Chame logo depois de abrir a transação e ANTES de ler
+    /// a disponibilidade. Não há "destravar": o Postgres solta sozinho no commit ou no rollback.
+    /// </summary>
+    public async Task LockCalendar(CancellationToken ct = default)
+    {
+        // Fora de uma transação, o cadeado seria solto no fim do próprio SELECT, sem proteger nada.
+        if (db.Database.CurrentTransaction is null)
+            throw new InvalidOperationException("LockCalendar precisa de uma transação aberta (db.Database.BeginTransactionAsync).");
+
+        await db.Database.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock({CalendarLockKey})", ct);
+    }
+
     /// <summary>Noites indisponíveis de hoje em diante, sem repetição e em ordem de data.</summary>
     public async Task<List<DateOnly>> GetUnavailableNights(CancellationToken ct = default)
     {
