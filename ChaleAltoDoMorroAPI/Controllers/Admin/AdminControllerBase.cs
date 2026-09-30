@@ -1,11 +1,15 @@
+using ChaleAltoDoMorroAPI.Global;
 using ChaleAltoDoMorroAPI.Services;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ChaleAltoDoMorroAPI.Controllers.Admin;
 
-// Base de todos os controllers do portal: [Authorize] herdado (nenhum esquece) e a tradução AdminResult → HTTP.
+// Base de todos os controllers do portal: [Authorize] e o CORS do portal herdados (nenhum esquece)
+// e a tradução AdminResult → HTTP.
 [ApiController]
+[EnableCors(CorsPolicies.Portal)]
 [Authorize]
 public abstract class AdminControllerBase : ControllerBase
 {

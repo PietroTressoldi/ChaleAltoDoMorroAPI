@@ -31,7 +31,7 @@ A 13 é pequena e destrava o portal no navegador. O Livro Caixa (14 e 15) vem ce
 - [ ] 10 — Galeria e vídeos com upload
 - [ ] 11 — Robustez: erros, rate limiting, logs
 - [ ] 12 — Preparar o deploy
-- [ ] 13 — CORS do portal
+- [x] 13 — CORS do portal
 - [x] 14 — Livro Caixa: domínio, regras puras e migration
 - [x] 15 — Livro Caixa: rotas e despesas fixas
 - [x] 16 — Folga entre hóspedes
@@ -495,9 +495,10 @@ e manda o header `Authorization`, então o navegador bloqueia a chamada no **pre
 - CORS **não** é segurança do servidor, é uma regra do navegador. Quem protege a API é o JWT.
 
 **Critérios de aceite**
-- [ ] Do portal em `localhost:5174`, o login e o `PUT /api/admin/pricing/weekday` funcionam sem erro de CORS no console.
-- [ ] O site em `localhost:5173` continua funcionando como antes.
-- [ ] Nenhuma origem fixa no código: tudo vem de configuração.
+- [x] Do portal em `localhost:5174`, o login e o `PUT /api/admin/pricing/weekday` funcionam sem erro de CORS no console.
+  *(Conferido simulando o preflight com `curl`; confirmar no navegador na fase P1 do portal.)*
+- [x] O site em `localhost:5173` continua funcionando como antes.
+- [x] Nenhuma origem fixa no código: tudo vem de configuração.
 
 ---
 

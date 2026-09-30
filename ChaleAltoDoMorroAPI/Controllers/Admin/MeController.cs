@@ -1,5 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
+using ChaleAltoDoMorroAPI.Global;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ChaleAltoDoMorroAPI.Controllers.Admin;
@@ -7,6 +9,7 @@ namespace ChaleAltoDoMorroAPI.Controllers.Admin;
 // [Authorize] na classe: toda ação nova já nasce protegida.
 [ApiController]
 [Authorize]
+[EnableCors(CorsPolicies.Portal)]
 [Route("api/admin/me")]
 public class MeController : ControllerBase
 {

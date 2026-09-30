@@ -1,11 +1,15 @@
 ﻿using ChaleAltoDoMorroAPI.Dtos;
+using ChaleAltoDoMorroAPI.Global;
 using ChaleAltoDoMorroAPI.Services;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ChaleAltoDoMorroAPI.Controllers;
 
+// Login é do portal: mesma política de CORS das rotas admin.
 [ApiController]
+[EnableCors(CorsPolicies.Portal)]
 [Route("api/auth")]
 public class AuthController(UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager, SrvToken srvToken) : ControllerBase
 {

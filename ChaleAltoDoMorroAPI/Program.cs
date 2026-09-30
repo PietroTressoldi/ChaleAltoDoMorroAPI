@@ -15,8 +15,6 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-const string SiteCorsPolicy = "Site";
-
 // Add services to the container.
 
 builder.Services.AddControllers().AddJsonOptions(options =>
@@ -109,16 +107,27 @@ builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 builder.Services.AddSingleton<IClock, BrazilClock>();
 builder.Services.AddSingleton<SrvToken>();
 
-// CORS: só o site pode chamar a API a partir do navegador. As origens vêm da configuração
-// (dev: appsettings.Development.json; produção: variável de ambiente Cors__AllowedOrigins__0).
-var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+// CORS: quais origens podem chamar a API a partir do NAVEGADOR. As origens vêm da configuração
+// (dev: appsettings.Development.json; produção: Cors__AllowedOrigins__0 e Cors__PortalOrigins__0).
+// Duas políticas (e não uma com as duas listas): o site só ganha o que ele usa (GET/POST), e o portal
+// ganha PUT/PATCH/DELETE + Authorization só nas rotas dele ([EnableCors(CorsPolicies.Portal)]).
+var siteOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+var portalOrigins = builder.Configuration.GetSection("Cors:PortalOrigins").Get<string[]>() ?? [];
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy(SiteCorsPolicy, policy =>
-        policy.WithOrigins(allowedOrigins)
+    options.AddPolicy(CorsPolicies.Site, policy =>
+        policy.WithOrigins(siteOrigins)
             .WithMethods("GET", "POST")
             .WithHeaders("Content-Type"));
+
+    // Sem AllowCredentials: o token vai no header Authorization, não em cookie.
+    // SetPreflightMaxAge: o navegador guarda a resposta do OPTIONS por 10 min (menos idas e vindas no celular).
+    options.AddPolicy(CorsPolicies.Portal, policy =>
+        policy.WithOrigins(portalOrigins)
+            .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE")
+            .WithHeaders("Content-Type", "Authorization")
+            .SetPreflightMaxAge(TimeSpan.FromMinutes(10)));
 });
 
 builder.Services.AddScoped<SrvReservation>();
@@ -162,7 +171,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 // Antes do UseAuthorization e do MapControllers: o preflight (OPTIONS) precisa ser respondido aqui.
-app.UseCors(SiteCorsPolicy);
+// "Site" é a política padrão; um [EnableCors("Portal")] no controller troca a política só naquela rota.
+app.UseCors(CorsPolicies.Site);
 
 app.UseAuthentication();
 app.UseAuthorization();
