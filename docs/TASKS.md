@@ -33,7 +33,7 @@ A 13 é pequena e destrava o portal no navegador. O Livro Caixa (14 e 15) vem ce
 - [ ] 12 — Preparar o deploy
 - [ ] 13 — CORS do portal
 - [x] 14 — Livro Caixa: domínio, regras puras e migration
-- [ ] 15 — Livro Caixa: rotas e despesas fixas
+- [x] 15 — Livro Caixa: rotas e despesas fixas
 - [ ] 16 — Folga entre hóspedes
 - [ ] 17 — Hóspedes
 - [ ] 18 — Calendário do portal
@@ -573,10 +573,10 @@ dono decide com base em número errado. Com a regra pura e testada, a API e o po
 - Como decidir o que é `409` (estado) e o que é `422` (regra).
 
 **Critérios de aceite**
-- [ ] Os casos HTTP de `REGRAS_CAIXA.md` (livro fechado, mês duplicado, categoria de tipo errado...) devolvem o status certo.
-- [ ] Criar outubro com `applyRecurring: true` já traz as despesas fixas ativas.
-- [ ] O JSON bate campo a campo com o `CONTRATO_PORTAL.md`.
-- [ ] Tudo testável pelo Scalar.
+- [x] Os casos HTTP de `REGRAS_CAIXA.md` (livro fechado, mês duplicado, categoria de tipo errado...) devolvem o status certo.
+- [x] Criar outubro com `applyRecurring: true` já traz as despesas fixas ativas.
+- [x] O JSON bate campo a campo com o `CONTRATO_PORTAL.md`.
+- [x] Tudo testável pelo Scalar.
 
 ---
 

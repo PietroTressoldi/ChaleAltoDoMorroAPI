@@ -128,7 +128,10 @@ builder.Services.AddScoped<SrvPackage>();
 builder.Services.AddScoped<SrvKit>();
 builder.Services.AddScoped<SrvBlockedDate>();
 builder.Services.AddScoped<SrvAdminReservation>();
-
+builder.Services.AddScoped<SrvCashCategory>();
+builder.Services.AddScoped<SrvRecurringExpense>();
+builder.Services.AddScoped<SrvCashBook>();
+builder.Services.AddScoped<SrvCashTransaction>();
 
 var app = builder.Build();
 
