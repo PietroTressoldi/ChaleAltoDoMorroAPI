@@ -16,3 +16,6 @@ public record PartialPackage(PackageInfo Package) : StayError;
 
 // O mínimo só passa de 1 quando a estadia tem noite de sexta ou sábado: este erro sempre é "fim de semana".
 public record MinNightsNotMet(int Required, int Actual) : StayError;
+
+// Confirmação com folga (task 16): a estadia invade a área protegida de outra reserva confirmada (ou vice-versa).
+public record ReservationConflict(DateOnly CheckIn, DateOnly CheckOut) : StayError;

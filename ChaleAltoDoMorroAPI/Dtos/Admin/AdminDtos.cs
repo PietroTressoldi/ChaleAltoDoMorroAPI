@@ -52,3 +52,11 @@ public record CreateBlockedRangeRequest(
 public record AdminBlockedDateDto(DateOnly Date, string? Reason);
 
 public record BlockedRangeCreatedDto(int Created, int AlreadyBlocked);
+
+
+// ---------- Configurações ----------
+
+// Folga entre hóspedes (task 16). "Check-in bloqueia a véspera" = Before; "Check-out bloqueia a data" = After.
+public record BufferSettingsDto(
+    [Range(0, 3, ErrorMessage = "A folga vai de 0 a 3 noites.")] int BufferBeforeNights,
+    [Range(0, 3, ErrorMessage = "A folga vai de 0 a 3 noites.")] int BufferAfterNights);

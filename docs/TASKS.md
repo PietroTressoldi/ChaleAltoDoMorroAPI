@@ -34,7 +34,7 @@ A 13 é pequena e destrava o portal no navegador. O Livro Caixa (14 e 15) vem ce
 - [ ] 13 — CORS do portal
 - [x] 14 — Livro Caixa: domínio, regras puras e migration
 - [x] 15 — Livro Caixa: rotas e despesas fixas
-- [ ] 16 — Folga entre hóspedes
+- [x] 16 — Folga entre hóspedes
 - [ ] 17 — Hóspedes
 - [ ] 18 — Calendário do portal
 - [ ] 19 — Dashboard
@@ -600,13 +600,13 @@ edita e um valor por reserva gravado na confirmação.
    O `BookingRules.Nights` **não muda**: ele continua sendo o que se cobra.
 4. `SrvAvailability` passa a usar a `OccupancyRules`. Com isso, o `GET /api/blocked-dates`, a validação da pré-reserva e
    a confirmação passam a respeitar a folga sem mudança própria.
-5. `GET /api/admin/calendar` (task 18) devolve as `bufferNights`.
+5. `GET /api/admin/calendar` (task 18) devolve as `bufferNights`. *(Fica para a task 18, que cria a rota.)*
 
 **Critérios de aceite**
-- [ ] Todos os casos da tabela "Folga entre hóspedes" de `REGRAS_RESERVA.md` viram teste e passam.
-- [ ] Com 0/0, **nenhum** teste antigo quebra: o comportamento de hoje fica igual.
-- [ ] Com o global 0/1 e uma reserva confirmada, o calendário do **site** mostra a noite do check-out bloqueada.
-- [ ] Mudar o global depois não muda a folga de uma reserva já confirmada, que vale o snapshot (ver o caso "global mudou").
+- [x] Todos os casos da tabela "Folga entre hóspedes" de `REGRAS_RESERVA.md` viram teste e passam.
+- [x] Com 0/0, **nenhum** teste antigo quebra: o comportamento de hoje fica igual.
+- [x] Com o global 0/1 e uma reserva confirmada, o calendário do **site** mostra a noite do check-out bloqueada.
+- [x] Mudar o global depois não muda a folga de uma reserva já confirmada, que vale o snapshot (ver o caso "global mudou").
 
 ---
 

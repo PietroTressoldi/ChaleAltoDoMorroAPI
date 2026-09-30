@@ -51,6 +51,41 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                     b.ToTable("blocked_dates", (string)null);
                 });
 
+            modelBuilder.Entity("ChaleAltoDoMorroAPI.Domain.BookingSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<int>("BufferAfterNights")
+                        .HasColumnType("integer")
+                        .HasColumnName("buffer_after_nights");
+
+                    b.Property<int>("BufferBeforeNights")
+                        .HasColumnType("integer")
+                        .HasColumnName("buffer_before_nights");
+
+                    b.HasKey("Id")
+                        .HasName("pk_booking_settings");
+
+                    b.ToTable("booking_settings", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_booking_settings_buffer_after_range", "buffer_after_nights BETWEEN 0 AND 3");
+
+                            t.HasCheckConstraint("ck_booking_settings_buffer_before_range", "buffer_before_nights BETWEEN 0 AND 3");
+
+                            t.HasCheckConstraint("ck_booking_settings_single_row", "id = 1");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            BufferAfterNights = 0,
+                            BufferBeforeNights = 0
+                        });
+                });
+
             modelBuilder.Entity("ChaleAltoDoMorroAPI.Domain.CashBook", b =>
                 {
                     b.Property<int>("Id")
@@ -469,6 +504,14 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                         .HasColumnType("character varying(2000)")
                         .HasColumnName("admin_notes");
 
+                    b.Property<int?>("BufferAfterNights")
+                        .HasColumnType("integer")
+                        .HasColumnName("buffer_after_nights");
+
+                    b.Property<int?>("BufferBeforeNights")
+                        .HasColumnType("integer")
+                        .HasColumnName("buffer_before_nights");
+
                     b.Property<decimal>("CalculatedTotal")
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)")
@@ -596,6 +639,10 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
 
                     b.ToTable("reservations", null, t =>
                         {
+                            t.HasCheckConstraint("ck_reservations_buffer_after_range", "buffer_after_nights IS NULL OR buffer_after_nights BETWEEN 0 AND 3");
+
+                            t.HasCheckConstraint("ck_reservations_buffer_before_range", "buffer_before_nights IS NULL OR buffer_before_nights BETWEEN 0 AND 3");
+
                             t.HasCheckConstraint("ck_reservations_checkout_after_checkin", "check_out > check_in");
 
                             t.HasCheckConstraint("ck_reservations_nights_positive", "nights > 0");

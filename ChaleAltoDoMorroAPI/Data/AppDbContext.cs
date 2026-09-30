@@ -19,6 +19,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<TourVideo> TourVideos => Set<TourVideo>();
     public DbSet<Guest> Guests => Set<Guest>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
+    public DbSet<BookingSettings> BookingSettings => Set<BookingSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

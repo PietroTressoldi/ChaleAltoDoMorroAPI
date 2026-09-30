@@ -1,6 +1,7 @@
-using ChaleAltoDoMorroAPI.Dtos.Admin;
+﻿using ChaleAltoDoMorroAPI.Dtos.Admin;
 using ChaleAltoDoMorroAPI.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace ChaleAltoDoMorroAPI.Controllers.Admin;
 
@@ -39,14 +40,15 @@ public class AdminReservationController(SrvAdminReservation srvAdminReservation)
     public async Task<ActionResult<ReservationDetailDto>> Update(Guid id, SaveReservationRequest request, CancellationToken ct) =>
         ToActionResult(await srvAdminReservation.Update(id, request, ct));
 
-    // O contrato aceita um corpo com a folga ({ bufferBeforeNights, bufferAfterNights }), mas ela só existe na task 16.
-    // Sem parâmetro [FromBody], o ASP.NET simplesmente ignora o corpo se o portal mandar.
+    // Corpo opcional com a folga ({ bufferBeforeNights, bufferAfterNights }). EmptyBodyBehavior.Allow: sem corpo
+    // (ou com null nos campos) vale a folga global. Sem o Allow, o [ApiController] devolveria 400 para corpo vazio.
     [HttpPost("{id:guid}/confirm")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<ActionResult<ReservationDetailDto>> Confirm(Guid id, CancellationToken ct) =>
-        ToActionResult(await srvAdminReservation.Confirm(id, ct));
+    public async Task<ActionResult<ReservationDetailDto>> Confirm(
+        Guid id, [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] ConfirmReservationRequest? request, CancellationToken ct) =>
+        ToActionResult(await srvAdminReservation.Confirm(id, request, ct));
 
     [HttpPost("{id:guid}/cancel")]
     [ProducesResponseType(StatusCodes.Status200OK)]

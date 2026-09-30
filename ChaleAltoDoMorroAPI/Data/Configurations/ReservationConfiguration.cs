@@ -12,6 +12,8 @@ public class ReservationConfiguration : IEntityTypeConfiguration<Reservation>
         {
             table.HasCheckConstraint("ck_reservations_checkout_after_checkin", "check_out > check_in");
             table.HasCheckConstraint("ck_reservations_nights_positive", "nights > 0");
+            table.HasCheckConstraint("ck_reservations_buffer_before_range", "buffer_before_nights IS NULL OR buffer_before_nights BETWEEN 0 AND 3");
+            table.HasCheckConstraint("ck_reservations_buffer_after_range", "buffer_after_nights IS NULL OR buffer_after_nights BETWEEN 0 AND 3");
         });
 
         builder.HasKey(reservation => reservation.Id);

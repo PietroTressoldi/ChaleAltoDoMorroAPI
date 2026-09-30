@@ -1,4 +1,4 @@
-using System.Linq.Expressions;
+﻿using System.Linq.Expressions;
 using ChaleAltoDoMorroAPI.Data;
 using ChaleAltoDoMorroAPI.Domain;
 using ChaleAltoDoMorroAPI.Dtos.Admin;
@@ -9,7 +9,7 @@ namespace ChaleAltoDoMorroAPI.Services;
 
 // Gestão das reservas no portal: listar, abrir, confirmar e cancelar (task 9), criar e editar (task 21).
 // A pré-reserva pública continua no SrvReservation.
-public class SrvAdminReservation(AppDbContext db, SrvAvailability srvAvailability, IClock brazilClock, TimeProvider timeProvider)
+public class SrvAdminReservation(AppDbContext db, SrvAvailability srvAvailability, SrvSettings srvSettings, IClock brazilClock, TimeProvider timeProvider)
 {
     // Um mapeamento só para a lista e para o detalhe. Como Expression, o EF traduz em SELECT com JOIN
     // (r.Guest1.Name vira JOIN em guests, sem Include). Compilado, serve para mapear a entidade já carregada.
@@ -18,7 +18,7 @@ public class SrvAdminReservation(AppDbContext db, SrvAvailability srvAvailabilit
             r.Id, r.Status, r.CheckIn, r.CheckOut, r.Nights,
             r.Guest1.Name, r.Guest2 != null ? r.Guest2.Name : null, r.ContactPhone,
             r.PackageName, r.KitName, r.Total, r.IncludesColonialBreakfast,
-            r.CreatedAt, r.ConfirmedAt, r.CancelledAt, r.Source);
+            r.CreatedAt, r.ConfirmedAt, r.CancelledAt, r.BufferBeforeNights, r.BufferAfterNights, r.Source);
 
     private static readonly Func<Reservation, ReservationListItemDto> ToListItemCompiled = ToListItem.Compile();
 
@@ -89,7 +89,7 @@ public class SrvAdminReservation(AppDbContext db, SrvAvailability srvAvailabilit
 
     // ---------- Status (task 9) ----------
 
-    public async Task<AdminResult<ReservationDetailDto>> Confirm(Guid id, CancellationToken ct = default)
+    public async Task<AdminResult<ReservationDetailDto>> Confirm(Guid id, ConfirmReservationRequest? request, CancellationToken ct = default)
     {
         // Dois cliques ao mesmo tempo em reservas com a mesma noite: sem o cadeado, os dois leriam "livre" antes de
         // qualquer um gravar, e as duas seriam confirmadas. Com ele, o segundo espera o primeiro terminar e aí lê de novo.
@@ -105,19 +105,27 @@ public class SrvAdminReservation(AppDbContext db, SrvAvailability srvAvailabilit
         if (reservation.Status != ReservationStatus.Pending)
             return new Conflict<ReservationDetailDto>($"Só dá para confirmar uma reserva pendente. Esta está {StatusText(reservation.Status)}.");
 
-        // Revalida: outra reserva pode ter sido confirmada nessas datas depois que esta chegou.
-        // Esta reserva ainda está pendente, então as noites dela não entram na conta (não "bate com ela mesma").
-        var unavailable = (await srvAvailability.GetUnavailableNights(ct)).ToHashSet();
-        var takenNights = BookingRules.Nights(reservation.CheckIn, reservation.CheckOut)
-            .Where(unavailable.Contains)
-            .ToList();
+        // Folga efetiva (task 16): a do pedido ou, se não veio, a global. Ela vira o snapshot da reserva.
+        var settings = await srvSettings.GetBookingSettings(ct);
+        var before = request?.BufferBeforeNights ?? settings.BufferBeforeNights;
+        var after = request?.BufferAfterNights ?? settings.BufferAfterNights;
 
-        if (takenNights.Count > 0)
-            return new Conflict<ReservationDetailDto>(
-                $"Não dá para confirmar: a(s) noite(s) {string.Join(", ", takenNights.Select(n => n.ToString("dd/MM/yyyy")))} " +
-                "já está(ão) bloqueada(s) ou com outra reserva confirmada.");
+        // Revalida: outra reserva pode ter sido confirmada nessas datas depois que esta chegou, e agora a folga
+        // de cada lado também conta (regra 3). Esta reserva ainda está pendente, então não "bate com ela mesma".
+        var stay = new BufferedStay(reservation.CheckIn, reservation.CheckOut, before, after);
+        switch (await srvAvailability.ValidateConfirmation(stay, reservation.Id, ct))
+        {
+            case BlockedNight blocked:
+                return new Conflict<ReservationDetailDto>($"Não dá para confirmar: a noite de {blocked.Night:dd/MM/yyyy} está bloqueada.");
+            case ReservationConflict other:
+                return new Conflict<ReservationDetailDto>(
+                    $"Não dá para confirmar: com a folga entre hóspedes, as datas batem com a reserva confirmada de " +
+                    $"{other.CheckIn:dd/MM/yyyy} a {other.CheckOut:dd/MM/yyyy}.");
+        }
 
         reservation.TryConfirm(timeProvider.GetUtcNow());
+        reservation.BufferBeforeNights = before;
+        reservation.BufferAfterNights = after;
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct); // solta o cadeado
 
@@ -177,8 +185,15 @@ public class SrvAdminReservation(AppDbContext db, SrvAvailability srvAvailabilit
             return problem;
 
         // Nasce pendente e, se o admin pediu, passa pela MESMA transição da rota de confirmar.
+        // A disponibilidade do ApplyForm já usou as noites publicadas, que contam a folga GLOBAL (regra 4):
+        // então o snapshot de uma reserva criada confirmada é o global.
         if (request.Status == ReservationStatus.Confirmed)
+        {
+            var settings = await srvSettings.GetBookingSettings(ct);
             reservation.TryConfirm(reservation.CreatedAt);
+            reservation.BufferBeforeNights = settings.BufferBeforeNights;
+            reservation.BufferAfterNights = settings.BufferAfterNights;
+        }
 
         db.Reservations.Add(reservation);
         await db.SaveChangesAsync(ct);

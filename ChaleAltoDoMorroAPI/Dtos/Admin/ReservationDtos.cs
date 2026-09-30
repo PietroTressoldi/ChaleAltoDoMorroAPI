@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using ChaleAltoDoMorroAPI.Domain;
 using ChaleAltoDoMorroAPI.Dtos.Validation;
 
@@ -141,6 +141,8 @@ public record ReservationListItemDto(
     DateTimeOffset CreatedAt,
     DateTimeOffset? ConfirmedAt,
     DateTimeOffset? CancelledAt,
+    int? BufferBeforeNights,        // folga gravada na confirmação (task 16); null enquanto não confirmada
+    int? BufferAfterNights,
     ReservationSource Source);
 
 public record GuestDetailDto(Guid Id, string Name, string? Cpf, string? Phone, string? Email);
@@ -168,3 +170,8 @@ public record ReservationDetailDto : ReservationListItemDto
     public bool SiteTotalDiverged { get; init; }
     public required IReadOnlyList<NightBreakdownDto> NightsBreakdown { get; init; }
 }
+
+// Corpo opcional do POST /confirm (task 16). null (ou corpo vazio) = usar o global de settings/buffer.
+public record ConfirmReservationRequest(
+    [Range(0, 3, ErrorMessage = "A folga vai de 0 a 3 noites.")] int? BufferBeforeNights,
+    [Range(0, 3, ErrorMessage = "A folga vai de 0 a 3 noites.")] int? BufferAfterNights);

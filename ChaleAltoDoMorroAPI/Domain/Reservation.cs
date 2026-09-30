@@ -38,6 +38,10 @@ public class Reservation
     // Anotação interna do dono (só aparece no portal). Diferente de Observations, que é o que o hóspede escreveu.
     public string? AdminNotes { get; set; }
 
+    // Folga gravada NA CONFIRMAÇÃO (task 16). null = ainda não confirmada.
+    // É um snapshot: mudar o global depois não mexe nesta reserva.
+    public int? BufferBeforeNights { get; set; }
+    public int? BufferAfterNights { get; set; }
     public Guid Guest1Id { get; set; }
     public Guest Guest1 { get; set; } = null!;
     public Guid? Guest2Id { get; set; }
