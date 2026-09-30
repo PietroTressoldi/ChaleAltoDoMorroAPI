@@ -51,6 +51,190 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                     b.ToTable("blocked_dates", (string)null);
                 });
 
+            modelBuilder.Entity("ChaleAltoDoMorroAPI.Domain.CashBook", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset?>("ClosedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("closed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("integer")
+                        .HasColumnName("month");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("integer")
+                        .HasColumnName("year");
+
+                    b.HasKey("Id")
+                        .HasName("pk_cash_books");
+
+                    b.HasIndex("Year", "Month")
+                        .IsUnique()
+                        .HasDatabaseName("ix_cash_books_year_month");
+
+                    b.ToTable("cash_books", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_cash_books_month_range", "month BETWEEN 1 AND 12");
+
+                            t.HasCheckConstraint("ck_cash_books_year_range", "year BETWEEN 2020 AND 2100");
+                        });
+                });
+
+            modelBuilder.Entity("ChaleAltoDoMorroAPI.Domain.CashCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)")
+                        .HasColumnName("color");
+
+                    b.Property<string>("Icon")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("icon");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer")
+                        .HasColumnName("order");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_cash_categories");
+
+                    b.ToTable("cash_categories", (string)null);
+                });
+
+            modelBuilder.Entity("ChaleAltoDoMorroAPI.Domain.CashTransaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<int>("CashBookId")
+                        .HasColumnType("integer")
+                        .HasColumnName("cash_book_id");
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("integer")
+                        .HasColumnName("category_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date")
+                        .HasColumnName("date");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("payment_method");
+
+                    b.Property<int?>("RecurringExpenseId")
+                        .HasColumnType("integer")
+                        .HasColumnName("recurring_expense_id");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("type");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_cash_transactions");
+
+                    b.HasIndex("CategoryId")
+                        .HasDatabaseName("ix_cash_transactions_category_id");
+
+                    b.HasIndex("Date")
+                        .HasDatabaseName("ix_cash_transactions_date");
+
+                    b.HasIndex("RecurringExpenseId")
+                        .HasDatabaseName("ix_cash_transactions_recurring_expense_id");
+
+                    b.HasIndex("CashBookId", "RecurringExpenseId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_cash_transactions_cash_book_id_recurring_expense_id")
+                        .HasFilter("recurring_expense_id IS NOT NULL");
+
+                    b.ToTable("cash_transactions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_cash_transactions_amount_positive", "amount > 0");
+                        });
+                });
+
             modelBuilder.Entity("ChaleAltoDoMorroAPI.Domain.GalleryImage", b =>
                 {
                     b.Property<Guid>("Id")
@@ -208,6 +392,68 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                     b.ToTable("pricing_rules", null, t =>
                         {
                             t.HasCheckConstraint("ck_pricing_rules_price_positive", "price_per_night > 0");
+                        });
+                });
+
+            modelBuilder.Entity("ChaleAltoDoMorroAPI.Domain.RecurringExpense", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("integer")
+                        .HasColumnName("category_id");
+
+                    b.Property<int>("DayOfMonth")
+                        .HasColumnType("integer")
+                        .HasColumnName("day_of_month");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("description");
+
+                    b.Property<DateOnly?>("EndMonth")
+                        .HasColumnType("date")
+                        .HasColumnName("end_month");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("payment_method");
+
+                    b.Property<DateOnly>("StartMonth")
+                        .HasColumnType("date")
+                        .HasColumnName("start_month");
+
+                    b.HasKey("Id")
+                        .HasName("pk_recurring_expenses");
+
+                    b.HasIndex("CategoryId")
+                        .HasDatabaseName("ix_recurring_expenses_category_id");
+
+                    b.ToTable("recurring_expenses", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_recurring_expenses_amount_positive", "amount > 0");
+
+                            t.HasCheckConstraint("ck_recurring_expenses_day_range", "day_of_month BETWEEN 1 AND 31");
+
+                            t.HasCheckConstraint("ck_recurring_expenses_end_after_start", "end_month IS NULL OR end_month >= start_month");
                         });
                 });
 
@@ -691,6 +937,41 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("ChaleAltoDoMorroAPI.Domain.CashTransaction", b =>
+                {
+                    b.HasOne("ChaleAltoDoMorroAPI.Domain.CashBook", null)
+                        .WithMany("Transactions")
+                        .HasForeignKey("CashBookId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_cash_transactions_cash_books_cash_book_id");
+
+                    b.HasOne("ChaleAltoDoMorroAPI.Domain.CashCategory", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_cash_transactions_cash_categories_category_id");
+
+                    b.HasOne("ChaleAltoDoMorroAPI.Domain.RecurringExpense", null)
+                        .WithMany()
+                        .HasForeignKey("RecurringExpenseId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_cash_transactions_recurring_expenses_recurring_expense_id");
+
+                    b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("ChaleAltoDoMorroAPI.Domain.RecurringExpense", b =>
+                {
+                    b.HasOne("ChaleAltoDoMorroAPI.Domain.CashCategory", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_recurring_expenses_cash_categories_category_id");
+                });
+
             modelBuilder.Entity("ChaleAltoDoMorroAPI.Domain.Reservation", b =>
                 {
                     b.HasOne("ChaleAltoDoMorroAPI.Domain.Guest", "Guest1")
@@ -778,6 +1059,11 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_asp_net_user_tokens_asp_net_users_user_id");
+                });
+
+            modelBuilder.Entity("ChaleAltoDoMorroAPI.Domain.CashBook", b =>
+                {
+                    b.Navigation("Transactions");
                 });
 #pragma warning restore 612, 618
         }

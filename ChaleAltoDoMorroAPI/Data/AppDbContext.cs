@@ -10,6 +10,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<PricingRule> PricingRules => Set<PricingRule>();
     public DbSet<BlockedDate> BlockedDates => Set<BlockedDate>();
     public DbSet<SpecialPackage> SpecialPackages => Set<SpecialPackage>();
+    public DbSet<CashBook> CashBooks => Set<CashBook>();
+    public DbSet<CashTransaction> CashTransactions => Set<CashTransaction>();
+    public DbSet<CashCategory> CashCategories => Set<CashCategory>();
+    public DbSet<RecurringExpense> RecurringExpenses => Set<RecurringExpense>();
     public DbSet<Kit> Kits => Set<Kit>();
     public DbSet<GalleryImage> GalleryImages => Set<GalleryImage>();
     public DbSet<TourVideo> TourVideos => Set<TourVideo>();

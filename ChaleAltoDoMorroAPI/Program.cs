@@ -136,6 +136,9 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     await AdminSeeder.SeedAsync(scope.ServiceProvider, app.Configuration, app.Logger);
+
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await CashCategorySeeder.SeedAsync(db, app.Logger);
 }
 
 // Configure the HTTP request pipeline.

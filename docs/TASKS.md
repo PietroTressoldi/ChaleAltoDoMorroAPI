@@ -32,7 +32,7 @@ A 13 é pequena e destrava o portal no navegador. O Livro Caixa (14 e 15) vem ce
 - [ ] 11 — Robustez: erros, rate limiting, logs
 - [ ] 12 — Preparar o deploy
 - [ ] 13 — CORS do portal
-- [ ] 14 — Livro Caixa: domínio, regras puras e migration
+- [x] 14 — Livro Caixa: domínio, regras puras e migration
 - [ ] 15 — Livro Caixa: rotas e despesas fixas
 - [ ] 16 — Folga entre hóspedes
 - [ ] 17 — Hóspedes
@@ -538,9 +538,9 @@ dono decide com base em número errado. Com a regra pura e testada, a API e o po
 - Por que o valor é sempre positivo e o sinal vem do tipo (evita uma "saída de −50").
 
 **Critérios de aceite**
-- [ ] Migration aplicada, com as tabelas e os índices visíveis no banco.
-- [ ] Todos os casos de `REGRAS_CAIXA.md` que não dependem de HTTP viram testes e passam.
-- [ ] `CashBookRules` não referencia EF nem relógio. Nenhum `double` em dinheiro.
+- [x] Migration aplicada, com as tabelas e os índices visíveis no banco.
+- [x] Todos os casos de `REGRAS_CAIXA.md` que não dependem de HTTP viram testes e passam.
+- [x] `CashBookRules` não referencia EF nem relógio. Nenhum `double` em dinheiro.
 
 **Armadilhas:**
 - `DayOfMonth = 31` em fevereiro dá exceção no `new DateOnly(...)`.
