@@ -327,6 +327,11 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                         .HasColumnType("character varying(150)")
                         .HasColumnName("name");
 
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("notes");
+
                     b.Property<string>("PhoneNumber")
                         .HasMaxLength(11)
                         .HasColumnType("character varying(11)")

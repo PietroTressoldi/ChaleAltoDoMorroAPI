@@ -145,7 +145,7 @@ public record ReservationListItemDto(
     int? BufferAfterNights,
     ReservationSource Source);
 
-public record GuestDetailDto(Guid Id, string Name, string? Cpf, string? Phone, string? Email);
+public record GuestReservationDetailDto(Guid Id, string Name, string? Cpf, string? Phone, string? Email);
 
 public record NightBreakdownDto(DateOnly Date, NightKind Kind, decimal Price);
 
@@ -155,8 +155,8 @@ public record ReservationDetailDto : ReservationListItemDto
 {
     public ReservationDetailDto(ReservationListItemDto item) : base(item) { }
 
-    public required GuestDetailDto Guest1 { get; init; }
-    public GuestDetailDto? Guest2 { get; init; }
+    public required GuestReservationDetailDto Guest1 { get; init; }
+    public GuestReservationDetailDto? Guest2 { get; init; }
     public string? ContactEmail { get; init; }
     public string? Observations { get; init; }
     public string? AdminNotes { get; init; }

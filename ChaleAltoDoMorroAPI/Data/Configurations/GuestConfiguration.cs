@@ -25,6 +25,9 @@ public class GuestConfiguration : IEntityTypeConfiguration<Guest>
         builder.Property(guest => guest.Email)
             .HasMaxLength(254);
 
+        builder.Property(guest => guest.Notes)
+            .HasMaxLength(1000);
+
         // Único, mas aceita vários NULL (no Postgres, NULL não conta como repetido).
         builder.HasIndex(guest => guest.Cpf)
             .IsUnique();

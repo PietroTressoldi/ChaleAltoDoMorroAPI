@@ -35,7 +35,7 @@ A 13 é pequena e destrava o portal no navegador. O Livro Caixa (14 e 15) vem ce
 - [x] 14 — Livro Caixa: domínio, regras puras e migration
 - [x] 15 — Livro Caixa: rotas e despesas fixas
 - [x] 16 — Folga entre hóspedes
-- [ ] 17 — Hóspedes
+- [x] 17 — Hóspedes
 - [ ] 18 — Calendário do portal
 - [ ] 19 — Dashboard
 - [ ] 20 — Trocar senha
@@ -631,9 +631,9 @@ edita e um valor por reserva gravado na confirmação.
 - Olhar o SQL gerado (`ToQueryString()`) para conferir que não virou N+1.
 
 **Critérios de aceite**
-- [ ] Ordenar por `totalSpent desc` traz primeiro quem mais gastou, contando só as confirmadas.
-- [ ] O CPF não sai na lista, só no detalhe.
-- [ ] Buscar "5299" encontra o hóspede pelo CPF.
+- [x] Ordenar por `totalSpent desc` traz primeiro quem mais gastou, contando só as confirmadas.
+- [x] O CPF não sai na lista, só no detalhe.
+- [x] Buscar "5299" encontra o hóspede pelo CPF.
 
 ---
 

@@ -13,7 +13,7 @@ public class SrvAdminReservation(AppDbContext db, SrvAvailability srvAvailabilit
 {
     // Um mapeamento só para a lista e para o detalhe. Como Expression, o EF traduz em SELECT com JOIN
     // (r.Guest1.Name vira JOIN em guests, sem Include). Compilado, serve para mapear a entidade já carregada.
-    private static readonly Expression<Func<Reservation, ReservationListItemDto>> ToListItem = r =>
+    internal static readonly Expression<Func<Reservation, ReservationListItemDto>> ToListItem = r =>
         new ReservationListItemDto(
             r.Id, r.Status, r.CheckIn, r.CheckOut, r.Nights,
             r.Guest1.Name, r.Guest2 != null ? r.Guest2.Name : null, r.ContactPhone,
@@ -369,7 +369,7 @@ public class SrvAdminReservation(AppDbContext db, SrvAvailability srvAvailabilit
     }
 
     // % e _ são curingas do LIKE: sem escapar, buscar "_" acharia qualquer coisa.
-    private static string EscapeLike(string text) =>
+    internal static string EscapeLike(string text) =>
         text.Replace(@"\", @"\\").Replace("%", @"\%").Replace("_", @"\_");
 
     // Lista fechada: o texto do usuário nunca vira nome de coluna. O Id no fim desempata linhas iguais
@@ -428,6 +428,6 @@ public class SrvAdminReservation(AppDbContext db, SrvAvailability srvAvailabilit
             Packages: packages);
     }
 
-    private static GuestDetailDto ToGuestDto(Guest guest) =>
+    private static GuestReservationDetailDto ToGuestDto(Guest guest) =>
         new(guest.Id, guest.Name, guest.Cpf, guest.PhoneNumber, guest.Email);
 }

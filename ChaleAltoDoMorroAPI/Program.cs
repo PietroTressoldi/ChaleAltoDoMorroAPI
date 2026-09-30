@@ -142,6 +142,7 @@ builder.Services.AddScoped<SrvRecurringExpense>();
 builder.Services.AddScoped<SrvCashBook>();
 builder.Services.AddScoped<SrvCashTransaction>();
 builder.Services.AddScoped<SrvSettings>();
+builder.Services.AddScoped<SrvGuest>();
 
 var app = builder.Build();
 
