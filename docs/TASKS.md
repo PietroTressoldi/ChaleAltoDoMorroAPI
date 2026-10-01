@@ -36,7 +36,7 @@ A 13 é pequena e destrava o portal no navegador. O Livro Caixa (14 e 15) vem ce
 - [x] 15 — Livro Caixa: rotas e despesas fixas
 - [x] 16 — Folga entre hóspedes
 - [x] 17 — Hóspedes
-- [ ] 18 — Calendário do portal
+- [x] 18 — Calendário do portal
 - [ ] 19 — Dashboard
 - [ ] 20 — Trocar senha
 - [x] 21 — Admin: criar e editar reservas
@@ -651,8 +651,8 @@ detalhes que o site público não pode ver: nome do hóspede, valor e motivo do 
 O intervalo tem no máximo 100 dias; acima disso → `400`.
 
 **Critérios de aceite**
-- [ ] Uma reserva de 30/10 → 02/11 aparece tanto em `from=2026-10-01&to=2026-10-31` quanto em novembro.
-- [ ] O `reason` dos bloqueios aparece aqui (rota autenticada) e continua fora da rota pública.
+- [x] Uma reserva de 30/10 → 02/11 aparece tanto em `from=2026-10-01&to=2026-10-31` quanto em novembro.
+- [x] O `reason` dos bloqueios aparece aqui (rota autenticada) e continua fora da rota pública.
 
 ---
 

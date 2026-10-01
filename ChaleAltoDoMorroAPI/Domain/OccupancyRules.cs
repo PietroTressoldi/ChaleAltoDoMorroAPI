@@ -20,6 +20,16 @@ public static class OccupancyRules
     }
 
     /// <summary>
+    /// Noites de folga da PRÓPRIA reserva (o snapshot, sem os globais): o que o calendário do portal pinta como "folga".
+    /// Antes: [in − B, in). Depois: [out, out + A). Diferente de PublishedNights, que também soma a folga global.
+    /// </summary>
+    public static IReadOnlyList<DateOnly> BufferNights(BufferedStay stay) =>
+    [
+        .. BookingRules.Nights(stay.CheckIn.AddDays(-stay.Before), stay.CheckIn),
+        .. BookingRules.Nights(stay.CheckOut, stay.CheckOut.AddDays(stay.After))
+    ];
+
+    /// <summary>
     /// Regra 3: S e R não convivem quando uma invade a área protegida da outra ([in − B, out + A)).
     /// As folgas podem se sobrepor entre si: as duas são "casa vazia".
     /// </summary>

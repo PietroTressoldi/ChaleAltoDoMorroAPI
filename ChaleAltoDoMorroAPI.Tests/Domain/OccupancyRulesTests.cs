@@ -125,4 +125,16 @@ public class OccupancyRulesTests
         Assert.Equal(2, BookingRules.Nights(D("2026-10-09"), D("2026-10-11")).Count);
         Assert.Equal(1789m, quote!.Total);
     }
+
+    // ---------- Noites de folga da própria reserva (calendário do portal, task 18) ----------
+
+    [Theory]
+    [InlineData(0, 0, new string[0])]              // sem folga
+    [InlineData(0, 1, new[] { "11" })]             // caso do CONTRATO_PORTAL: check-out bloqueia a data
+    [InlineData(1, 1, new[] { "08", "11" })]       // véspera + dia do check-out
+    [InlineData(2, 0, new[] { "07", "08" })]       // duas noites antes, nada depois
+    public void Noites_de_folga_de_R(int before, int after, string[] expected)
+    {
+        Assert.Equal(expected, OccupancyRules.BufferNights(R(before, after)).Select(n => n.ToString("dd")).ToArray());
+    }
 }

@@ -6,9 +6,9 @@ using ChaleAltoDoMorroAPI.Global;
 using ChaleAltoDoMorroAPI.Interfaces;
 using ChaleAltoDoMorroAPI.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
@@ -143,6 +143,7 @@ builder.Services.AddScoped<SrvCashBook>();
 builder.Services.AddScoped<SrvCashTransaction>();
 builder.Services.AddScoped<SrvSettings>();
 builder.Services.AddScoped<SrvGuest>();
+builder.Services.AddScoped<SrvCalendar>();
 
 var app = builder.Build();
 
