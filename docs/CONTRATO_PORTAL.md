@@ -40,7 +40,7 @@ O token vale 60 minutos e não há refresh token. Quando o token vence, o portal
 
 ### ✅ `GET /api/admin/me` → `{ "email": "dono@exemplo.com" }`
 
-### 🆕 `POST /api/admin/me/password` (task 20)
+### ✅ `POST /api/admin/me/password` (task 20)
 ```json
 { "currentPassword": "...", "newPassword": "..." }
 ```

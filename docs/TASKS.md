@@ -38,7 +38,7 @@ A 13 é pequena e destrava o portal no navegador. O Livro Caixa (14 e 15) vem ce
 - [x] 17 — Hóspedes
 - [x] 18 — Calendário do portal
 - [x] 19 — Dashboard
-- [ ] 20 — Trocar senha
+- [x] 20 — Trocar senha
 - [x] 21 — Admin: criar e editar reservas
 
 ---
@@ -417,10 +417,22 @@ ignorar acentos, a extensão `unaccent`).
 **Objetivo:** o portal envia fotos e cadastra vídeos, e o site volta a mostrar a galeria e o tour. As rotas e os formatos estão em `CONTRATO_PORTAL.md`, seção "Galeria e vídeos".
 
 **O que fazer**
-1. `Storage/IFileStorage` com `SaveAsync(stream, fileName, contentType, pasta)` → caminho/URL, e `DeleteAsync`.
+1. `Storage/IFileStorage` com:
+   - `SaveAsync(stream, contentType, pasta)` → devolve a **chave** do arquivo (caminho relativo, ex.:
+     `galeria/3f2a….webp`), **não** a URL;
+   - `DeleteAsync(chave)`;
+   - `GetPublicUrl(chave)` → URL absoluta.
 2. `LocalFileStorage`: salva em `wwwroot/uploads/...` com **nome gerado** (Guid), nunca o nome enviado.
    `app.UseStaticFiles()` para servir. `wwwroot/uploads/` no `.gitignore`.
-3. Montar **URL absoluta** a partir de configuração (`PublicBaseUrl`), porque o site exige.
+3. **No banco vai só a chave.** A URL absoluta (que o site exige) é montada **na leitura**, com
+   `GetPublicUrl(chave)` = configuração `Storage:PublicBaseUrl` + chave. Em dev, a base é
+   `http://localhost:5084/uploads/`. No futuro, vira o domínio do S3/CloudFront.
+   - **Por que:** se o banco guardar `https://api.../uploads/x.webp`, migrar para o S3 exige um `UPDATE` em todas as
+     linhas. Guardando a chave, migrar é copiar os arquivos (`aws s3 sync`), trocar a implementação no `Program.cs`
+     e trocar a URL base na configuração.
+   - `GalleryImage.Src`/`SrcSet` hoje foram pensados como URL. Decida se renomeia a coluna (ex.: `FileKey`) com uma
+     migration, e como guardar as variantes do `srcSet` (item 8): lista de chaves ou um padrão de nome montado na leitura.
+   - Link do YouTube continua gravado como URL: não é arquivo nosso.
 4. Admin galeria: `POST` upload (`IFormFile` + `alt`), `PUT` alt, `PUT /reorder` (lista de ids na nova ordem), `DELETE` (apaga o arquivo também).
 5. Admin vídeos: cadastro por **URL do YouTube** ou upload de `.mp4` + capa; `orientation`; reordenar; remover.
 6. Validação: só `image/jpeg`, `image/png`, `image/webp` (confira também a **assinatura do arquivo**, não só a
@@ -432,6 +444,8 @@ ignorar acentos, a extensão `unaccent`).
 - [ ] Upload pelo Scalar → a foto aparece na galeria do site, na ordem certa.
 - [ ] Arquivo `.exe` renomeado para `.jpg` é recusado.
 - [ ] Remover a foto apaga o registro **e** o arquivo.
+- [ ] Nenhuma URL absoluta de arquivo nosso gravada no banco: trocar `Storage:PublicBaseUrl` muda todas as URLs da
+  resposta sem mexer no banco.
 - [ ] Trocar `LocalFileStorage` por outra implementação exigiria mudar **só** o registro no `Program.cs`.
 
 ---
@@ -462,7 +476,10 @@ ignorar acentos, a extensão `unaccent`).
 3. Migrations em produção: script (`dotnet ef migrations script --idempotent`) ou bundle (`dotnet ef migrations bundle`),
    **não** `Database.Migrate()` automático sem pensar.
 4. CORS com o domínio real do site; HTTPS; `UseForwardedHeaders` se ficar atrás de proxy.
-5. Uploads: disco persistente (volume) ou trocar o `IFileStorage` por nuvem.
+5. Uploads: disco persistente (volume) ou trocar o `IFileStorage` por nuvem. Caminho para o S3: `S3FileStorage`
+   com o pacote `AWSSDK.S3`, bucket atrás do CloudFront, `Storage:PublicBaseUrl` apontando para o CloudFront e
+   credenciais por **IAM Role** da instância (nenhuma chave da AWS em `appsettings` ou no git). Arquivos antigos:
+   `aws s3 sync wwwroot/uploads s3://<bucket>`.
 6. Checklist de publicação: testes verdes no `develop` → merge `develop` → `master` → deploy.
    Na landing e no portal, `VITE_API_URL` aponta para a API publicada.
 
@@ -689,9 +706,9 @@ hábito importa.
 `UserManager.ChangePasswordAsync`.
 
 **Critérios de aceite**
-- [ ] Senha atual errada → `422` "Senha atual incorreta".
-- [ ] Senha nova fraca → `422` com as regras que falharam, em PT-BR.
-- [ ] Depois da troca, o login com a senha antiga falha e com a nova funciona.
+- [x] Senha atual errada → `422` "Senha atual incorreta".
+- [x] Senha nova fraca → `422` com as regras que falharam, em PT-BR.
+- [x] Depois da troca, o login com a senha antiga falha e com a nova funciona.
 
 ---
 
@@ -757,6 +774,11 @@ acaba bloqueando datas "na mão" sem saber de quem é a reserva.
   `REGRAS_CAIXA.md`).
 - **Anexos no caixa** (foto do comprovante ou da nota) usando o `IFileStorage` da task 10.
 - **Papéis** (dono × ajudante): hoje qualquer usuário logado pode tudo.
+- **Refúgio de Santiago / multi-hospedagem** (2027, decisão no ADR-014 de `ChaleAltoDoMorroDocs/DECISOES.md`): a mesma
+  API e o mesmo portal atendem as duas operações. Modelo `Property` → `Unit`, acesso usuário × operação, caixa por
+  operação com visão geral e hóspede único. Abrir a trilha de tasks **3 a 4 meses antes** da abertura. A migration cria o
+  Chalé como primeira operação e liga os dados existentes a ele. Até lá, não deixar "Chalé" fixo no código: nomes,
+  valores e textos vêm do banco ou da configuração.
 - **Pagamento em duas partes (sinal + restante)**: hoje o combinado com o hóspede é **50% para confirmar e 50% no
   check-in**. A ideia é o portal mostrar, em cada reserva, quanto já foi **pago** e quanto **falta**. Um caminho simples:
   uma entidade `ReservationPayment` (valor, data, forma de pagamento, tipo `deposit`/`balance`) e os campos calculados
