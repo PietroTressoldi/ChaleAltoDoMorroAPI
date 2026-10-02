@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ChaleAltoDoMorroAPI.Controllers.Admin;
 
@@ -13,7 +14,7 @@ namespace ChaleAltoDoMorroAPI.Controllers.Admin;
 [Authorize]
 [EnableCors(CorsPolicies.Portal)]
 [Route("api/admin/me")]
-public class MeController(UserManager<IdentityUser> userManager) : ControllerBase
+public class MeController(UserManager<IdentityUser> userManager, ILogger<MeController> log) : ControllerBase
 {
     [HttpGet]
     public ActionResult<object> GetMe()
@@ -23,6 +24,7 @@ public class MeController(UserManager<IdentityUser> userManager) : ControllerBas
     }
 
     [HttpPost("password")]
+    [EnableRateLimiting(RateLimitPolicies.Password)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<ActionResult> ChangePassword([FromBody] ChangePasswordDto request)
@@ -42,11 +44,18 @@ public class MeController(UserManager<IdentityUser> userManager) : ControllerBas
         var result = await userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
 
         if (result.Succeeded)
+        {
+            log.LogInformation("Senha trocada por {UserId}.", user.Id);
             return NoContent();
+        }
 
         // As mensagens já vêm em PT-BR (PtBrIdentityErrorDescriber). "PasswordMismatch" = senha atual errada;
         // os outros códigos são regras da senha nova que falharam.
         var currentPasswordWrong = result.Errors.Any(e => e.Code == nameof(IdentityErrorDescriber.PasswordMismatch));
+
+        // Senha atual errada aqui não conta para o lockout (só o login conta): o log é o que mostra tentativas repetidas.
+        if (currentPasswordWrong)
+            log.LogWarning("Troca de senha recusada: senha atual incorreta para {UserId}.", user.Id);
 
         return Problem(
             title: currentPasswordWrong ? "Senha atual incorreta" : "Senha nova fraca",

@@ -29,7 +29,7 @@ A 13 é pequena e destrava o portal no navegador. O Livro Caixa (14 e 15) vem ce
 - [x] 8 — Admin: preços, pacotes, kits e bloqueios
 - [x] 9 — Admin: reservas (pré-reservas e confirmadas)
 - [x] 10 — Galeria e vídeos com upload
-- [ ] 11 — Robustez: erros, rate limiting, logs
+- [x] 11 — Robustez: erros, rate limiting, logs
 - [ ] 12 — Preparar o deploy
 - [x] 13 — CORS do portal
 - [x] 14 — Livro Caixa: domínio, regras puras e migration
@@ -461,9 +461,9 @@ ignorar acentos, a extensão `unaccent`).
 4. Health check incluindo o banco (`AddHealthChecks().AddDbContextCheck<AppDbContext>()`).
 
 **Critérios de aceite**
-- [ ] 6 logins seguidos em 1 minuto → o 6º recebe `429`.
-- [ ] Uma exceção forçada devolve ProblemDetails sem detalhes internos (em Production).
-- [ ] `grep` no código não encontra log com CPF, telefone ou e-mail.
+- [x] 6 logins seguidos em 1 minuto → o 6º recebe `429`.
+- [x] Uma exceção forçada devolve ProblemDetails sem detalhes internos (em Production).
+- [x] `grep` no código não encontra log com CPF, telefone ou e-mail.
 
 ---
 
@@ -476,6 +476,9 @@ ignorar acentos, a extensão `unaccent`).
 3. Migrations em produção: script (`dotnet ef migrations script --idempotent`) ou bundle (`dotnet ef migrations bundle`),
    **não** `Database.Migrate()` automático sem pensar.
 4. CORS com o domínio real do site; HTTPS; `UseForwardedHeaders` se ficar atrás de proxy.
+   - ⚠️ **Obrigatório com o rate limiting da task 11:** atrás do Caddy/CloudFront, sem `UseForwardedHeaders` (antes do
+     `UseRateLimiter`, com `KnownProxies`/`KnownNetworks` configurados), todo mundo tem o IP do proxy e divide a mesma
+     cota: 5 logins errados de qualquer pessoa bloqueiam o login de todos. A chave fica em `RateLimitPolicies.ClientKey`.
 5. Uploads: disco persistente (volume) ou S3. O `S3FileStorage` **já existe** (pacotes `AWSSDK.S3` e
    `AWSSDK.Extensions.NETCore.Setup`) e é escolhido só por configuração, sem mudar código:
    ```

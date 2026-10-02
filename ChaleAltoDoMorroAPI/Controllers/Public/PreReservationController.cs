@@ -1,7 +1,9 @@
 using ChaleAltoDoMorroAPI.Domain;
 using ChaleAltoDoMorroAPI.Dtos;
+using ChaleAltoDoMorroAPI.Global;
 using ChaleAltoDoMorroAPI.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ChaleAltoDoMorroAPI.Controllers.Public;
 
@@ -12,6 +14,7 @@ namespace ChaleAltoDoMorroAPI.Controllers.Public;
 public class PreReservationController(SrvReservation srvReservation) : ControllerBase
 {
     [HttpPost]
+    [EnableRateLimiting(RateLimitPolicies.PreReservation)]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]

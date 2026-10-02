@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using Amazon.S3;
 using ChaleAltoDoMorroAPI.Data;
 using ChaleAltoDoMorroAPI.Global;
@@ -9,8 +10,12 @@ using ChaleAltoDoMorroAPI.Services;
 using ChaleAltoDoMorroAPI.Storage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
@@ -25,6 +30,10 @@ builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
     options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
 });
+
+// Erros: todo 4xx/5xx sai em ProblemDetails (com traceId), e exceção não tratada passa pelo GlobalExceptionHandler.
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Default"))
@@ -175,6 +184,55 @@ builder.Services.AddScoped<SrvDashboard>();
 builder.Services.AddScoped<SrvGallery>();
 builder.Services.AddScoped<SrvVideo>();
 
+builder.Services.AddRateLimiter(options =>
+{
+    // O padrão é 503 ("o servidor caiu"). 429 diz "você está indo rápido demais".
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // Teto geral por IP para qualquer rota da API (os arquivos de /uploads ficam de fora: são servidos antes).
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(http =>
+        RateLimitPolicies.FixedWindowPerClient(http, permitLimit: 100, TimeSpan.FromMinutes(1)));
+
+    // Força bruta: senha do login e senha atual na troca de senha.
+    options.AddPolicy(RateLimitPolicies.Login, http =>
+        RateLimitPolicies.FixedWindowPerClient(http, permitLimit: 5, TimeSpan.FromMinutes(1)));
+    options.AddPolicy(RateLimitPolicies.Password, http =>
+        RateLimitPolicies.FixedWindowPerClient(http, permitLimit: 5, TimeSpan.FromMinutes(1)));
+
+    // Spam de pré-reservas falsas no site.
+    options.AddPolicy(RateLimitPolicies.PreReservation, http =>
+        RateLimitPolicies.FixedWindowPerClient(http, permitLimit: 10, TimeSpan.FromHours(1)));
+
+    options.OnRejected = async (context, ct) =>
+    {
+        var http = context.HttpContext;
+
+        // Retry-After: quantos segundos faltam para a janela abrir de novo (o portal pode mostrar "tente em 40 s").
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+            http.Response.Headers.RetryAfter = ((int)Math.Ceiling(retryAfter.TotalSeconds)).ToString();
+
+        // Sem o IP no log: IP também é dado pessoal (LGPD).
+        http.RequestServices.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("RateLimiting")
+            .LogWarning("Limite de requisições atingido em {Method} {Path}.", http.Request.Method, http.Request.Path);
+
+        await http.RequestServices.GetRequiredService<IProblemDetailsService>().WriteAsync(new ProblemDetailsContext
+        {
+            HttpContext = http,
+            ProblemDetails = new ProblemDetails
+            {
+                Status = StatusCodes.Status429TooManyRequests,
+                Title = "Muitas tentativas",
+                Detail = "Espere um pouco e tente de novo."
+            }
+        });
+    };
+});
+
+// /health de verdade: além de "a API respondeu", testa se consegue conectar no Postgres.
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<AppDbContext>("database");
+
 var app = builder.Build();
 
 // Cria o storage já na subida. No S3, sem credenciais (IAM Role) a API nem sobe, em vez de quebrar a galeria do site
@@ -204,6 +262,11 @@ if (app.Environment.IsDevelopment())
     await seeder.SeedAsync();
 }
 
+// Primeiro middleware de verdade: precisa "envolver" todos os outros para pegar exceção de qualquer um.
+app.UseExceptionHandler();
+// 404 de rota inexistente, 405, 401 sem corpo... ganham corpo em ProblemDetails também.
+app.UseStatusCodePages();
+
 app.UseHttpsRedirection();
 
 // Disco local: a própria API serve wwwroot/uploads em /uploads. No S3 quem serve é o CloudFront.
@@ -222,9 +285,23 @@ if (storageOptions.Provider == StorageProvider.Local)
 // "Site" é a política padrão; um [EnableCors("Portal")] no controller troca a política só naquela rota.
 app.UseCors(CorsPolicies.Site);
 
+// Depois do CORS: o preflight (OPTIONS) é respondido pelo CORS e não gasta a cota, e o 429 já sai com os headers de CORS.
+// Antes da autenticação: quem passou do limite nem chega a validar o token.
+app.UseRateLimiter();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Mantém o contrato da Task 0: {"status":"ok"}. Banco fora → 503 {"status":"unhealthy"} (o status HTTP vem do padrão).
+// Sem o motivo da falha na resposta: "connection refused em localhost:5433" revelaria a infraestrutura.
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = (context, report) => context.Response.WriteAsJsonAsync(new
+    {
+        status = report.Status == HealthStatus.Healthy ? "ok" : "unhealthy"
+    })
+});
 
 app.Run();
