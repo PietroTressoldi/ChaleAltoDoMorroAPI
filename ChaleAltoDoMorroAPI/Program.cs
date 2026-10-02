@@ -5,10 +5,12 @@ using ChaleAltoDoMorroAPI.Data;
 using ChaleAltoDoMorroAPI.Global;
 using ChaleAltoDoMorroAPI.Interfaces;
 using ChaleAltoDoMorroAPI.Services;
+using ChaleAltoDoMorroAPI.Storage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
@@ -108,6 +110,16 @@ builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 builder.Services.AddSingleton<IClock, BrazilClock>();
 builder.Services.AddSingleton<SrvToken>();
 
+// Arquivos: trocar o disco pelo S3 = trocar SÓ esta linha (e a URL base na configuração).
+builder.Services.AddOptions<StorageOptions>()
+    .Bind(builder.Configuration.GetSection("Storage"))
+    .Validate(o => Uri.TryCreate(o.PublicBaseUrl, UriKind.Absolute, out _), "Storage:PublicBaseUrl precisa ser uma URL absoluta.")
+    .ValidateOnStart();
+
+builder.Services.AddSingleton<IFileStorage, LocalFileStorage>();
+
+
+
 // CORS: quais origens podem chamar a API a partir do NAVEGADOR. As origens vêm da configuração
 // (dev: appsettings.Development.json; produção: Cors__AllowedOrigins__0 e Cors__PortalOrigins__0).
 // Duas políticas (e não uma com as duas listas): o site só ganha o que ele usa (GET/POST), e o portal
@@ -146,6 +158,8 @@ builder.Services.AddScoped<SrvSettings>();
 builder.Services.AddScoped<SrvGuest>();
 builder.Services.AddScoped<SrvCalendar>();
 builder.Services.AddScoped<SrvDashboard>();
+builder.Services.AddScoped<SrvGallery>();
+builder.Services.AddScoped<SrvVideo>();
 
 var app = builder.Build();
 
@@ -173,6 +187,14 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+var uploadsRoot = LocalFileStorage.RootPath(app.Environment);
+Directory.CreateDirectory(uploadsRoot);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsRoot),
+    RequestPath = "/uploads"
+});
 
 // Antes do UseAuthorization e do MapControllers: o preflight (OPTIONS) precisa ser respondido aqui.
 // "Site" é a política padrão; um [EnableCors("Portal")] no controller troca a política só naquela rota.

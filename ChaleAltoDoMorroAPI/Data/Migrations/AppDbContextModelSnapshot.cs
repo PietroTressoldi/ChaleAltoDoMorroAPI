@@ -283,20 +283,15 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                         .HasColumnType("character varying(250)")
                         .HasColumnName("alt");
 
+                    b.Property<string>("FileKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("file_key");
+
                     b.Property<int>("Order")
                         .HasColumnType("integer")
                         .HasColumnName("order");
-
-                    b.Property<string>("Src")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("src");
-
-                    b.Property<string>("SrcSet")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("src_set");
 
                     b.HasKey("Id")
                         .HasName("pk_gallery_images");
@@ -712,6 +707,11 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("description");
 
+                    b.Property<string>("FileKey")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("file_key");
+
                     b.Property<int>("Order")
                         .HasColumnType("integer")
                         .HasColumnName("order");
@@ -722,10 +722,10 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("orientation");
 
-                    b.Property<string>("PosterUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("poster_url");
+                    b.Property<string>("PosterKey")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("poster_key");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -734,7 +734,6 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                         .HasColumnName("title");
 
                     b.Property<string>("Url")
-                        .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
                         .HasColumnName("url");
@@ -742,7 +741,10 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                     b.HasKey("Id")
                         .HasName("pk_tour_videos");
 
-                    b.ToTable("tour_videos", (string)null);
+                    b.ToTable("tour_videos", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_tour_videos_url_xor_file", "(url IS NULL) <> (file_key IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>

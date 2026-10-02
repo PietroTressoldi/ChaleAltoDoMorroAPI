@@ -28,7 +28,7 @@ A 13 é pequena e destrava o portal no navegador. O Livro Caixa (14 e 15) vem ce
 - [x] 7 — Login do portal: Identity + JWT
 - [x] 8 — Admin: preços, pacotes, kits e bloqueios
 - [x] 9 — Admin: reservas (pré-reservas e confirmadas)
-- [ ] 10 — Galeria e vídeos com upload
+- [x] 10 — Galeria e vídeos com upload
 - [ ] 11 — Robustez: erros, rate limiting, logs
 - [ ] 12 — Preparar o deploy
 - [x] 13 — CORS do portal
@@ -441,12 +441,12 @@ ignorar acentos, a extensão `unaccent`).
 8. Opcional: gerar versões 640/1280/1920 em WebP para o `srcSet` (biblioteca `SixLabors.ImageSharp`).
 
 **Critérios de aceite**
-- [ ] Upload pelo Scalar → a foto aparece na galeria do site, na ordem certa.
-- [ ] Arquivo `.exe` renomeado para `.jpg` é recusado.
-- [ ] Remover a foto apaga o registro **e** o arquivo.
-- [ ] Nenhuma URL absoluta de arquivo nosso gravada no banco: trocar `Storage:PublicBaseUrl` muda todas as URLs da
+- [x] Upload pelo Scalar → a foto aparece na galeria do site, na ordem certa.
+- [x] Arquivo `.exe` renomeado para `.jpg` é recusado.
+- [x] Remover a foto apaga o registro **e** o arquivo.
+- [x] Nenhuma URL absoluta de arquivo nosso gravada no banco: trocar `Storage:PublicBaseUrl` muda todas as URLs da
   resposta sem mexer no banco.
-- [ ] Trocar `LocalFileStorage` por outra implementação exigiria mudar **só** o registro no `Program.cs`.
+- [x] Trocar `LocalFileStorage` por outra implementação exigiria mudar **só** o registro no `Program.cs`.
 
 ---
 

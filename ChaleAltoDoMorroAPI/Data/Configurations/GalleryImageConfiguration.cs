@@ -12,12 +12,9 @@ public class GalleryImageConfiguration : IEntityTypeConfiguration<GalleryImage>
 
         builder.HasKey(image => image.Id);
 
-        builder.Property(image => image.Src)
-            .HasMaxLength(500)
-            .IsRequired();
-
-        builder.Property(image => image.SrcSet)
-            .HasMaxLength(2000);
+        builder.Property(image => image.FileKey)
+               .HasMaxLength(200)
+               .IsRequired();
 
         builder.Property(image => image.Alt)
             .HasMaxLength(250)

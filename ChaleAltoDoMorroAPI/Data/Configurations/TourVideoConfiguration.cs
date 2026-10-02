@@ -8,7 +8,18 @@ public class TourVideoConfiguration : IEntityTypeConfiguration<TourVideo>
 {
     public void Configure(EntityTypeBuilder<TourVideo> builder)
     {
-        builder.ToTable("tour_videos");
+        builder.ToTable("tour_videos", table =>
+              // Ou é link do YouTube, ou é arquivo nosso: nunca os dois, nunca nenhum.
+              table.HasCheckConstraint("ck_tour_videos_url_xor_file", "(url IS NULL) <> (file_key IS NULL)"));
+
+        builder.Property(video => video.Url)
+            .HasMaxLength(500);       // sem IsRequired: vídeo enviado não tem link
+
+        builder.Property(video => video.FileKey)
+            .HasMaxLength(200);
+
+        builder.Property(video => video.PosterKey)
+            .HasMaxLength(200);
 
         builder.HasKey(video => video.Id);
 
@@ -18,13 +29,6 @@ public class TourVideoConfiguration : IEntityTypeConfiguration<TourVideo>
 
         builder.Property(video => video.Description)
             .HasMaxLength(1000);
-
-        builder.Property(video => video.Url)
-            .HasMaxLength(500)
-            .IsRequired();
-
-        builder.Property(video => video.PosterUrl)
-            .HasMaxLength(500);
 
         builder.Property(video => video.Orientation)
             .HasConversion<string>()

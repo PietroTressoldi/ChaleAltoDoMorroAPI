@@ -408,13 +408,24 @@ Um livro por mês. Ele registra **entradas** e **saídas**, e o resultado é o *
 
 ---
 
-## Galeria e vídeos (🆕 task 10)
-Os formatos de leitura são os mesmos do site (`GalleryImageDto` e `TourVideoDto`).
+## Galeria e vídeos (✅ task 10)
+Os formatos de leitura são os mesmos do site (`GalleryImageDto` e `TourVideoDto`). As URLs saem sempre absolutas
+(montadas na leitura a partir de `Storage:PublicBaseUrl`; o banco guarda só a chave do arquivo).
+- `GET /api/admin/gallery` → `GalleryImageDto[]` · `GET /api/admin/gallery/{id}` → `GalleryImageDto`.
 - `POST /api/admin/gallery`: `multipart/form-data` com `file` e `alt` → `201 GalleryImageDto`.
-- `PUT /api/admin/gallery/{id}` com `{ "alt": "..." }` → `200`.
-- `PUT /api/admin/gallery/reorder` com `{ "ids": ["b3f1...", "a2c4..."] }` → `204`. Leva a lista completa, na nova ordem.
-- `DELETE /api/admin/gallery/{id}` → `204`.
+  - Só JPEG, PNG ou WebP (conferido pela **assinatura do arquivo**), até 10 MB → senão `422`.
+- `PUT /api/admin/gallery/{id}` com `{ "alt": "..." }` → `200 GalleryImageDto`.
+- `PUT /api/admin/gallery/reorder` com `{ "ids": ["b3f1...", "a2c4..."] }` → `204`. Leva a lista completa, na nova ordem
+  (faltou, sobrou ou repetiu id → `422`).
+- `DELETE /api/admin/gallery/{id}` → `204` (apaga o registro e o arquivo).
 - Vídeos:
-  - `POST /api/admin/videos` aceita JSON `{ title, description?, url, orientation }` para um link do YouTube, ou
-    `multipart` com `file` (mp4) + `poster?` + os mesmos campos.
-  - `PUT /api/admin/videos/{id}` edita, `PUT /api/admin/videos/reorder` reordena e `DELETE /api/admin/videos/{id}` remove.
+  - `GET /api/admin/videos` → `TourVideoDto[]` · `GET /api/admin/videos/{id}` → `TourVideoDto`.
+  - `POST /api/admin/videos` com JSON `{ title, description?, url, orientation? }` para um link do YouTube
+    (`watch?v=`, `youtu.be/`, `shorts/`, `embed/`) → `201`.
+  - `POST /api/admin/videos/upload` com `multipart/form-data`: `file` (mp4, até 100 MB) + `poster?` (imagem, até 10 MB)
+    + `title`, `description?`, `orientation?` → `201`.
+    - Rota separada (e não a mesma do JSON) porque o OpenAPI não aceita duas operações no mesmo método + caminho.
+  - `PUT /api/admin/videos/{id}` com `{ title, description?, orientation, url? }` → `200`. `url` só vale para vídeo do
+    YouTube; num mp4 enviado → `422`.
+  - `PUT /api/admin/videos/reorder` reordena (mesmas regras da galeria) e `DELETE /api/admin/videos/{id}` remove
+    (apaga o mp4 e a capa).
