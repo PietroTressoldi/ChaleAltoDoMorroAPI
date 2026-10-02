@@ -36,7 +36,8 @@ builder.Services.AddIdentityCore<IdentityUser>(options =>
     options.User.RequireUniqueEmail = true;
 })
     .AddEntityFrameworkStores<AppDbContext>()
-    .AddSignInManager();
+    .AddSignInManager()
+    .AddErrorDescriber<PtBrIdentityErrorDescriber>();
 
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()
     ?? throw new InvalidOperationException("Seção 'Jwt' não configurada.");
