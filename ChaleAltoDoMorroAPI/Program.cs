@@ -144,6 +144,7 @@ builder.Services.AddScoped<SrvCashTransaction>();
 builder.Services.AddScoped<SrvSettings>();
 builder.Services.AddScoped<SrvGuest>();
 builder.Services.AddScoped<SrvCalendar>();
+builder.Services.AddScoped<SrvDashboard>();
 
 var app = builder.Build();
 

@@ -5,8 +5,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ChaleAltoDoMorroAPI.Services;
 
+// Calendário do portal (task 18): o que ocupa ou marca noites no intervalo, com os detalhes que o site não vê.
 public class SrvCalendar(AppDbContext db)
 {
+
     public async Task<CalendarDto> Get(DateOnly from, DateOnly to, CancellationToken ct = default)
     {
         // Converte o "to" inclusivo em fim EXCLUSIVO, igual às noites [checkIn, checkOut).

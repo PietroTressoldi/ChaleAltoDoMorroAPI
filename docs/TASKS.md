@@ -37,7 +37,7 @@ A 13 é pequena e destrava o portal no navegador. O Livro Caixa (14 e 15) vem ce
 - [x] 16 — Folga entre hóspedes
 - [x] 17 — Hóspedes
 - [x] 18 — Calendário do portal
-- [ ] 19 — Dashboard
+- [x] 19 — Dashboard
 - [ ] 20 — Trocar senha
 - [x] 21 — Admin: criar e editar reservas
 
@@ -666,7 +666,7 @@ líquido e o que precisa de atenção (pré-reservas pendentes, despesas fixas n
 
 **O que fazer:** seguir o formato e as **regras de cálculo** do `CONTRATO_PORTAL.md`, seção "Dashboard".
 1. Uma classe pura para os períodos:
-   - `DashboardPeriod.From(kind, year, index)` → from, to, label e o período anterior;
+   - `DashboardPeriod.Of(kind, year, index)` → from, to, label, e `Previous()` → o período anterior;
    - o anterior do 1º trimestre de 2026 é o 4º trimestre de 2025, e o anterior de janeiro é dezembro do ano anterior.
 2. Métricas de reserva: faturamento pelo check-in, noites vendidas recortadas ao período e ocupação.
 3. Métricas do caixa: a soma dos livros dos meses do período, mais `topExpenses`, `pendingRecurring`,
@@ -674,9 +674,9 @@ líquido e o que precisa de atenção (pré-reservas pendentes, despesas fixas n
 4. `series` (por dia no mês, por mês nos demais), `expensesByCategory`, `topKits`, `upcoming` e `pendingCount`.
 
 **Critérios de aceite**
-- [ ] Testes da classe de período: todos os tipos, virada de ano, e `index` inválido → `400`.
-- [ ] Testes do recorte de noites: a estadia de 30/10 → 02/11 conta 2 noites em outubro e 1 em novembro.
-- [ ] `occupancyRate` fica entre 0 e 1. Em período sem noites disponíveis, vale 0 (sem divisão por zero).
+- [x] Testes da classe de período: todos os tipos, virada de ano, e `index` inválido → `400`.
+- [x] Testes do recorte de noites: a estadia de 30/10 → 02/11 conta 2 noites em outubro e 1 em novembro.
+- [x] `occupancyRate` fica entre 0 e 1. Em período sem noites disponíveis, vale 0 (sem divisão por zero).
 
 **Armadilhas:** carregar tudo em memória. Filtre por período no banco e agregue lá quando der; o volume é pequeno, mas o
 hábito importa.
