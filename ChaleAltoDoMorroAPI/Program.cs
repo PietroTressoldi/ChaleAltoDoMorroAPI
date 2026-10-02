@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Amazon.S3;
 using ChaleAltoDoMorroAPI.Data;
 using ChaleAltoDoMorroAPI.Global;
 using ChaleAltoDoMorroAPI.Interfaces;
@@ -110,14 +111,27 @@ builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 builder.Services.AddSingleton<IClock, BrazilClock>();
 builder.Services.AddSingleton<SrvToken>();
 
-// Arquivos: trocar o disco pelo S3 = trocar SÓ esta linha (e a URL base na configuração).
+// Arquivos: disco local (dev) ou S3 (produção), escolhido por Storage:Provider. Nenhum serviço sabe qual é:
+// todos só conhecem o IFileStorage e a chave do arquivo.
+var storageOptions = builder.Configuration.GetSection("Storage").Get<StorageOptions>() ?? new StorageOptions();
+
 builder.Services.AddOptions<StorageOptions>()
     .Bind(builder.Configuration.GetSection("Storage"))
     .Validate(o => Uri.TryCreate(o.PublicBaseUrl, UriKind.Absolute, out _), "Storage:PublicBaseUrl precisa ser uma URL absoluta.")
+    .Validate(o => o.Provider != StorageProvider.S3 || !string.IsNullOrWhiteSpace(o.BucketName), "Storage:BucketName é obrigatório com o S3.")
     .ValidateOnStart();
 
-builder.Services.AddSingleton<IFileStorage, LocalFileStorage>();
-
+if (storageOptions.Provider == StorageProvider.S3)
+{
+    // Região: seção "AWS" ou variável AWS_REGION. Credenciais: IAM Role da EC2 (nenhuma chave na configuração).
+    builder.Services.AddDefaultAWSOptions(builder.Configuration.GetAWSOptions());
+    builder.Services.AddAWSService<IAmazonS3>();
+    builder.Services.AddSingleton<IFileStorage, S3FileStorage>();
+}
+else
+{
+    builder.Services.AddSingleton<IFileStorage, LocalFileStorage>();
+}
 
 
 // CORS: quais origens podem chamar a API a partir do NAVEGADOR. As origens vêm da configuração
@@ -163,6 +177,10 @@ builder.Services.AddScoped<SrvVideo>();
 
 var app = builder.Build();
 
+// Cria o storage já na subida. No S3, sem credenciais (IAM Role) a API nem sobe, em vez de quebrar a galeria do site
+// na primeira requisição.
+_ = app.Services.GetRequiredService<IFileStorage>();
+
 // Admin inicial: em todos os ambientes (sem ele não há como entrar no portal).
 using (var scope = app.Services.CreateScope())
 {
@@ -188,13 +206,17 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-var uploadsRoot = LocalFileStorage.RootPath(app.Environment);
-Directory.CreateDirectory(uploadsRoot);
-app.UseStaticFiles(new StaticFileOptions
+// Disco local: a própria API serve wwwroot/uploads em /uploads. No S3 quem serve é o CloudFront.
+if (storageOptions.Provider == StorageProvider.Local)
 {
-    FileProvider = new PhysicalFileProvider(uploadsRoot),
-    RequestPath = "/uploads"
-});
+    var uploadsRoot = LocalFileStorage.RootPath(app.Environment);
+    Directory.CreateDirectory(uploadsRoot);
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(uploadsRoot),
+        RequestPath = "/uploads"
+    });
+}
 
 // Antes do UseAuthorization e do MapControllers: o preflight (OPTIONS) precisa ser respondido aqui.
 // "Site" é a política padrão; um [EnableCors("Portal")] no controller troca a política só naquela rota.

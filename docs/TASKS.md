@@ -476,10 +476,22 @@ ignorar acentos, a extensão `unaccent`).
 3. Migrations em produção: script (`dotnet ef migrations script --idempotent`) ou bundle (`dotnet ef migrations bundle`),
    **não** `Database.Migrate()` automático sem pensar.
 4. CORS com o domínio real do site; HTTPS; `UseForwardedHeaders` se ficar atrás de proxy.
-5. Uploads: disco persistente (volume) ou trocar o `IFileStorage` por nuvem. Caminho para o S3: `S3FileStorage`
-   com o pacote `AWSSDK.S3`, bucket atrás do CloudFront, `Storage:PublicBaseUrl` apontando para o CloudFront e
-   credenciais por **IAM Role** da instância (nenhuma chave da AWS em `appsettings` ou no git). Arquivos antigos:
-   `aws s3 sync wwwroot/uploads s3://<bucket>`.
+5. Uploads: disco persistente (volume) ou S3. O `S3FileStorage` **já existe** (pacotes `AWSSDK.S3` e
+   `AWSSDK.Extensions.NETCore.Setup`) e é escolhido só por configuração, sem mudar código:
+   ```
+   Storage__Provider=S3
+   Storage__BucketName=<bucket>
+   Storage__PublicBaseUrl=https://<distribuição>.cloudfront.net/
+   AWS__Region=sa-east-1
+   ```
+   - Credenciais por **IAM Role** da instância, com `s3:PutObject` e `s3:DeleteObject` só nesse bucket. Nenhuma chave
+     da AWS em `appsettings`, variável de ambiente ou git.
+   - Bucket **privado**, lido só pelo CloudFront (Origin Access Control).
+   - Sem bucket ou sem credenciais, a API **não sobe**: o erro aparece no deploy, não na galeria do site.
+   - No S3, a API não serve `/uploads`: quem serve é o CloudFront. Os objetos vão com `Cache-Control` de 1 ano
+     (a chave nunca é reaproveitada).
+   - Arquivos que já existirem no disco: `aws s3 sync ChaleAltoDoMorroAPI/wwwroot/uploads s3://<bucket>/`. O banco não muda.
+   - Ainda não testado contra um bucket de verdade: no primeiro deploy, enviar uma foto pelo portal, abrir a URL e apagá-la.
 6. Checklist de publicação: testes verdes no `develop` → merge `develop` → `master` → deploy.
    Na landing e no portal, `VITE_API_URL` aponta para a API publicada.
 
