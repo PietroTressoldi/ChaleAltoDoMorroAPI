@@ -65,6 +65,11 @@ public class SrvReservation(AppDbContext db, SrvAvailability srvAvailability, IC
 
     private async Task<Guid> AddReservation(StayQuote bookingQuote, PackageInfo? package, Kit? kit, Guest mainGuest, Guest? secondGuest, PostPreReservationRequest request, CancellationToken ct = default)
     {
+        // Sem attribution no corpo = origem desconhecida (tudo null). Com ela, sempre limpa: nunca recusa.
+        var attribution = request.Attribution is { } a
+            ? AttributionRules.Normalize(a.Source, a.UtmSource, a.UtmMedium, a.UtmCampaign, a.UtmContent, a.FirstVisitAt)
+            : null;
+
         Reservation reservation = new()
         {
             CheckIn = request.CheckIn,
@@ -89,6 +94,12 @@ public class SrvReservation(AppDbContext db, SrvAvailability srvAvailability, IC
             ContactEmail = request.Guest.Email,
             ContactPhone = request.Guest.Phone,
             Observations = request.Guest.Notes,
+            AttributionSource = attribution?.Source,
+            UtmSource = attribution?.UtmSource,
+            UtmMedium = attribution?.UtmMedium,
+            UtmCampaign = attribution?.UtmCampaign,
+            UtmContent = attribution?.UtmContent,
+            FirstVisitAt = attribution?.FirstVisitAt,
             Status = ReservationStatus.Pending,
             CreatedAt = timeProvider.GetUtcNow()
         };

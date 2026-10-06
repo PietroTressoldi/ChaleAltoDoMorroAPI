@@ -27,6 +27,24 @@ public sealed class PostPreReservationRequest
     public GuestDto Guest { get; init; } = null!;
 
     public SecondGuestDto? SecondGuest { get; init; }
+
+    /// <summary>De onde o visitante veio (UTM). Opcional: site antigo ou navegador sem armazenamento manda null.</summary>
+    public AttributionDto? Attribution { get; init; }
+}
+
+// Origem da pré-reserva. SEM atributos de validação de propósito: dado de marketing nunca pode virar 400.
+// Tudo é texto (até a data) e quem limpa é o AttributionRules.Normalize, no SrvReservation.
+public sealed class AttributionDto
+{
+    /// <summary>meta_ads | instagram | google | direct | other. Outro valor é gravado como "other".</summary>
+    public string? Source { get; init; }
+    public string? UtmSource { get; init; }
+    public string? UtmMedium { get; init; }
+    public string? UtmCampaign { get; init; }
+    public string? UtmContent { get; init; }
+
+    /// <summary>Primeira visita (ISO 8601, UTC). Texto para que uma data inválida não derrube o binding.</summary>
+    public string? FirstVisitAt { get; init; }
 }
 
 public sealed class GuestDto : IValidatableObject

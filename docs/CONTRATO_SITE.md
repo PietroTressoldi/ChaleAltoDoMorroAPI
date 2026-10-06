@@ -180,7 +180,12 @@ Corpo enviado pelo site (exatamente assim):
   "extraIds": ["8a1b..."],
   "estimatedTotal": 1968,
   "guest": { "name": "Ana Souza", "cpf": "52998224725", "email": null, "phone": "51989098631", "notes": "" },
-  "secondGuest": { "name": "Bruno Lima", "cpf": null }
+  "secondGuest": { "name": "Bruno Lima", "cpf": null },
+  "attribution": {
+    "source": "meta_ads",
+    "utmSource": "meta", "utmMedium": "paid", "utmCampaign": "inverno-2026", "utmContent": "video-banheira",
+    "firstVisitAt": "2026-10-05T14:30:00.000Z"
+  }
 }
 ```
 
@@ -197,6 +202,10 @@ Corpo enviado pelo site (exatamente assim):
 | `guest.phone` | Obrigatório, **só dígitos**, 10 ou 11 dígitos (DDD + número, sem +55) |
 | `guest.notes` | Opcional, até 1000 caracteres (pode vir `""`) |
 | `secondGuest` | Opcional (`null`). Se vier: `name` obrigatório; `cpf` opcional, mas válido se vier |
+| `attribution` | Opcional (ausente ou `null` = origem desconhecida). De onde o visitante veio, para medir os anúncios. **Nunca causa erro**: valor ruim é limpo, não recusado (`AttributionRules`) |
+| `attribution.source` | `"meta_ads"` \| `"instagram"` \| `"google"` \| `"direct"` \| `"other"`. Qualquer outro valor é gravado como `"other"` |
+| `attribution.utmSource`, `utmMedium`, `utmCampaign`, `utmContent` | Texto ou `null` (digitado à mão nos links dos anúncios). Sem espaços nas pontas, vazio vira `null`, cortado em 150 caracteres |
+| `attribution.firstVisitAt` | Data e hora da **primeira** visita (first-touch), ISO 8601 em UTC, ou `null`. Data que não dá para ler vira `null` (nunca `400`) |
 
 Respostas sugeridas:
 - `201 Created` com `{ "id": "...", "total": 1968, "status": "pending" }` e header `Location`.

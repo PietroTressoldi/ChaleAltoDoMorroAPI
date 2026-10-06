@@ -52,6 +52,16 @@ public class Reservation
     public string ContactPhone { get; set; } = string.Empty;
     public string? ContactEmail { get; set; }
 
+    // Origem da pré-reserva (UTM), já normalizada pelo AttributionRules. Colunas simples em vez de tabela à parte:
+    // é 1 para 1 com a reserva e facilita o "pré-reservas por origem" no dashboard (GROUP BY attribution_source).
+    // AttributionSource null = não sabemos (reserva do portal, site antigo ou navegador sem armazenamento).
+    public string? AttributionSource { get; set; }
+    public string? UtmSource { get; set; }
+    public string? UtmMedium { get; set; }
+    public string? UtmCampaign { get; set; }
+    public string? UtmContent { get; set; }
+    public DateTimeOffset? FirstVisitAt { get; set; }
+
     // Transições de status: as regras ficam SÓ aqui, e o serviço nunca muda o Status direto.
     //   Pending   → Confirmed
     //   Pending   → Cancelled

@@ -504,6 +504,11 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                         .HasColumnType("character varying(2000)")
                         .HasColumnName("admin_notes");
 
+                    b.Property<string>("AttributionSource")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("attribution_source");
+
                     b.Property<int?>("BufferAfterNights")
                         .HasColumnType("integer")
                         .HasColumnName("buffer_after_nights");
@@ -552,6 +557,10 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("estimated_total_from_site");
+
+                    b.Property<DateTimeOffset?>("FirstVisitAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("first_visit_at");
 
                     b.Property<Guid>("Guest1Id")
                         .HasColumnType("uuid")
@@ -618,6 +627,26 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("total");
+
+                    b.Property<string>("UtmCampaign")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("utm_campaign");
+
+                    b.Property<string>("UtmContent")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("utm_content");
+
+                    b.Property<string>("UtmMedium")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("utm_medium");
+
+                    b.Property<string>("UtmSource")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("utm_source");
 
                     b.HasKey("Id")
                         .HasName("pk_reservations");

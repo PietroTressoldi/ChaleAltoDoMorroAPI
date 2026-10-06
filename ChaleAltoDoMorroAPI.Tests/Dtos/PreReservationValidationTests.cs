@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 using ChaleAltoDoMorroAPI.Dtos;
 
 namespace ChaleAltoDoMorroAPI.Tests.Dtos;
@@ -89,5 +90,45 @@ public class PreReservationValidationTests
         };
 
         Assert.Equal(["ExtraIds"], InvalidFields(request));
+    }
+
+    // ---------- Origem (attribution): dado de marketing nunca derruba a pré-reserva ----------
+
+    [Fact]
+    public void Sem_attribution_continua_valido()
+    {
+        var request = new PostPreReservationRequest { Guest = ValidGuest(), Attribution = null };
+
+        Assert.Empty(InvalidFields(request));
+    }
+
+    [Fact]
+    public void Attribution_com_lixo_continua_valido()
+    {
+        var attribution = new AttributionDto
+        {
+            Source = "tiktok",
+            UtmSource = "   ",
+            UtmCampaign = new string('x', 5000),
+            FirstVisitAt = "ontem à tarde",
+        };
+        var request = new PostPreReservationRequest { Guest = ValidGuest(), Attribution = attribution };
+
+        Assert.Empty(InvalidFields(request));
+        Assert.Empty(InvalidFields(attribution)); // o ASP.NET valida o objeto aninhado também
+    }
+
+    [Fact]
+    public void Data_de_primeira_visita_invalida_nao_quebra_a_leitura_do_json()
+    {
+        // Mesmas opções do ASP.NET (camelCase). Se FirstVisitAt fosse DateTimeOffset, isto lançaria JsonException (400).
+        const string json = """
+            { "guest": { "name": "Ana Souza", "cpf": "52998224725", "phone": "51989098631" },
+              "attribution": { "source": "meta_ads", "firstVisitAt": "não é data" } }
+            """;
+
+        var request = JsonSerializer.Deserialize<PostPreReservationRequest>(json, JsonSerializerOptions.Web);
+
+        Assert.Equal("não é data", request!.Attribution!.FirstVisitAt);
     }
 }

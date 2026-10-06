@@ -168,8 +168,18 @@ public record ReservationDetailDto : ReservationListItemDto
     public bool PriceAdjusted { get; init; }
     public decimal? EstimatedTotalFromSite { get; init; }
     public bool SiteTotalDiverged { get; init; }
+    public ReservationAttributionDto? Attribution { get; init; }
     public required IReadOnlyList<NightBreakdownDto> NightsBreakdown { get; init; }
 }
+
+// Origem da pré-reserva (UTM). null = origem desconhecida (reserva do portal ou site sem essa informação).
+public record ReservationAttributionDto(
+    string Source,
+    string? UtmSource,
+    string? UtmMedium,
+    string? UtmCampaign,
+    string? UtmContent,
+    DateTimeOffset? FirstVisitAt);
 
 // Corpo opcional do POST /confirm (task 16). null (ou corpo vazio) = usar o global de settings/buffer.
 public record ConfirmReservationRequest(

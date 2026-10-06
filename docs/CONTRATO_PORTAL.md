@@ -153,6 +153,11 @@ Tem tudo o que está na lista, mais:
   "nightsTotal": 1789,
   "calculatedTotal": 1968, "priceAdjusted": false,
   "estimatedTotalFromSite": 1968, "siteTotalDiverged": false,
+  "attribution": {
+    "source": "meta_ads",
+    "utmSource": "meta", "utmMedium": "paid", "utmCampaign": "inverno-2026", "utmContent": "video-banheira",
+    "firstVisitAt": "2026-10-05T14:30:00+00:00"
+  },
   "nightsBreakdown": [
     { "date": "2026-10-09", "kind": "weekend", "price": 894.5 },
     { "date": "2026-10-10", "kind": "weekend", "price": 894.5 }
@@ -164,6 +169,9 @@ valem são os gravados na reserva (snapshot).
 - `calculatedTotal`: o total que o `BookingRules` calculou quando a reserva foi criada ou editada. `priceAdjusted` é
   `total != calculatedTotal` (desconto ou outro combinado do admin).
 - `estimatedTotalFromSite` é `null` nas reservas criadas pelo portal, e aí `siteTotalDiverged` é `false`.
+- `attribution` (origem da pré-reserva, UTM): `null` (ou ausente) quando a origem é desconhecida — reservas do portal,
+  pré-reservas antigas ou de navegador sem armazenamento. `source` é sempre um de `meta_ads`, `instagram`, `google`,
+  `direct` ou `other`; os `utm*` e `firstVisitAt` (primeira visita, UTC) podem ser `null`. Só existe no detalhe, não na lista.
 
 ### `POST /api/admin/reservations/{id}/confirm`
 ```json

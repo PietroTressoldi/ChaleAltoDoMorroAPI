@@ -83,6 +83,13 @@ public class ReservationConfiguration : IEntityTypeConfiguration<Reservation>
         builder.Property(reservation => reservation.ContactEmail)
             .HasMaxLength(254);
 
+        // Origem da pré-reserva (UTM). Os limites batem com o AttributionRules, que já corta antes de gravar.
+        builder.Property(reservation => reservation.AttributionSource).HasMaxLength(20);
+        builder.Property(reservation => reservation.UtmSource).HasMaxLength(AttributionRules.MaxUtmLength);
+        builder.Property(reservation => reservation.UtmMedium).HasMaxLength(AttributionRules.MaxUtmLength);
+        builder.Property(reservation => reservation.UtmCampaign).HasMaxLength(AttributionRules.MaxUtmLength);
+        builder.Property(reservation => reservation.UtmContent).HasMaxLength(AttributionRules.MaxUtmLength);
+
         builder.HasIndex(reservation => new { reservation.Status, reservation.CheckIn });
     }
 }

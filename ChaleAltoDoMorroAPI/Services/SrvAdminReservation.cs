@@ -83,6 +83,11 @@ public class SrvAdminReservation(AppDbContext db, SrvAvailability srvAvailabilit
             EstimatedTotalFromSite = reservation.EstimatedTotalFromSite,
             // Reserva do portal não tem total do site: nada a comparar.
             SiteTotalDiverged = reservation.EstimatedTotalFromSite is { } estimated && estimated != reservation.Total,
+            // Sem AttributionSource gravado = não sabemos a origem: o objeto inteiro vai null.
+            Attribution = reservation.AttributionSource is { } source
+                ? new ReservationAttributionDto(source, reservation.UtmSource, reservation.UtmMedium,
+                    reservation.UtmCampaign, reservation.UtmContent, reservation.FirstVisitAt)
+                : null,
             NightsBreakdown = await GetNightsBreakdown(reservation, ct)
         });
     }

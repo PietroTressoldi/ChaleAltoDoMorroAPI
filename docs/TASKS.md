@@ -40,6 +40,7 @@ A 13 é pequena e destrava o portal no navegador. O Livro Caixa (14 e 15) vem ce
 - [x] 19 — Dashboard
 - [x] 20 — Trocar senha
 - [x] 21 — Admin: criar e editar reservas
+- [x] 22 — Origem da pré-reserva (UTM)
 
 ---
 
@@ -776,6 +777,34 @@ acaba bloqueando datas "na mão" sem saber de quem é a reserva.
   telefone. O portal precisa mandar o valor que está na tela.
 - Esquecer de atualizar o `ContactPhone` (snapshot) quando o telefone do hóspede 1 muda.
 - `IncludesColonialBreakfast` depende do número de diárias: recalcule ao mudar as datas.
+
+---
+
+## Task 22 — Origem da pré-reserva (UTM)
+
+> Implementada por um agente do Claude a pedido do dono (exceção ao combinado de mentoria). Vale ler o diff como estudo.
+
+**Objetivo:** saber de onde veio cada pré-reserva (anúncio da Meta, Instagram, Google, direto ou outro) para medir o
+retorno dos anúncios.
+
+**O que foi feito** (formatos em `CONTRATO_SITE.md`, `POST /api/pre-reservations`, e `CONTRATO_PORTAL.md`, detalhe da reserva)
+1. `attribution` opcional no corpo da pré-reserva (`AttributionDto`, tudo texto e **sem** atributos de validação).
+2. `Domain/AttributionRules` (classe pura): `source` fora da lista vira `"other"`; UTMs sem espaços, vazio vira `null`,
+   cortados em 150; `firstVisitAt` lido como texto e convertido para UTC (data ruim vira `null`).
+3. Colunas na própria `reservations` (`attribution_source`, `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`,
+   `first_visit_at`). Migration `OrigemDaPreReserva`.
+4. `attribution` no `GET /api/admin/reservations/{id}` (`null` quando a origem é desconhecida).
+
+**Conceitos novos:**
+- Dado "best effort": receber como texto e normalizar, em vez de deixar o model binding devolver `400`.
+
+**Critérios de aceite**
+- [ ] Teste real (Docker + `dotnet ef database update`): pré-reserva sem `attribution`, ou com valores inválidos, continua
+  `201`, e o detalhe no portal mostra a origem.
+- [x] Testes do `AttributionRules` e da validação passando.
+
+**Próximo passo natural:** "pré-reservas por origem" no dashboard (`GROUP BY attribution_source`, com a taxa de
+confirmação por origem).
 
 ---
 
