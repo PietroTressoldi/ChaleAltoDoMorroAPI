@@ -363,3 +363,7 @@ MigrationBackup/
 FodyWeavers.xsd
 
 **/wwwroot/uploads/
+# Variáveis de produção (docker compose): segredos, nunca no git
+.env
+.env.*
+!.env.example

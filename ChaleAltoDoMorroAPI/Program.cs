@@ -150,6 +150,13 @@ else
 var siteOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 var portalOrigins = builder.Configuration.GetSection("Cors:PortalOrigins").Get<string[]>() ?? [];
 
+// Em produção, origem vazia ou malformada derruba a subida (erro no deploy, e não "o site não carrega" sem motivo).
+if (!builder.Environment.IsDevelopment())
+{
+    CorsPolicies.EnsureValidOrigins("Cors:AllowedOrigins", siteOrigins);
+    CorsPolicies.EnsureValidOrigins("Cors:PortalOrigins", portalOrigins);
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(CorsPolicies.Site, policy =>

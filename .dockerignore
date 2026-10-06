@@ -1,0 +1,16 @@
+# O que NÃO vai para o contexto do docker build (mais rápido e nada sensível dentro da imagem).
+**/bin/
+**/obj/
+**/*.user
+**/.vs/
+**/.vscode/
+**/.idea/
+.git/
+.github/
+docs/
+ChaleAltoDoMorroAPI.Tests/
+docker-compose*.yml
+**/.env
+**/appsettings.Development.json
+**/wwwroot/uploads/
+*.md
