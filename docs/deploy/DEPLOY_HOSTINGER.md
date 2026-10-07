@@ -1,6 +1,6 @@
 # Deploy na Hostinger + Cloudflare — passo a passo
 
-A API e o banco ficam numa **VPS KVM da Hostinger**. A landing e o portal ficam no **Cloudflare Pages**, que é grátis.
+A API e o banco ficam numa **VPS KVM da Hostinger**. A landing (já no ar) fica no **Cloudflare Workers** e o portal no **Cloudflare Pages**, os dois grátis.
 Siga **na ordem**. Cada passo termina com um **✅ Confere**: só avance se ele deu certo.
 
 > Troque `seudominio.com.br` pelo domínio real em **todos** os lugares.
@@ -18,7 +18,7 @@ Siga **na ordem**. Cada passo termina com um **✅ Confere**: só avance se ele 
                        │                       fotos no disco (volume)   │
                        └─────────────────────────────────────────────────┘
 
- seudominio        ───►  Cloudflare Pages  (build da landing, feito pela Cloudflare a cada push)
+ seudominio        ───►  Cloudflare Workers (build da landing, feito pela Cloudflare a cada push)
  portal.seudominio ───►  Cloudflare Pages  (build do portal, feito pela Cloudflare a cada push)
 ```
 
@@ -261,9 +261,19 @@ O `curl` tem que responder `{"status":"ok"}`. Abra a mesma URL no navegador: tem
 
 ---
 
-## 8. Os sites no Cloudflare Pages
+## 8. Os sites na Cloudflare
 
-Faça o 8.1 e o 8.2 **duas vezes**: uma para a **landing** e outra para o **portal**.
+### 8.0 Landing: já está no ar (Workers)
+O projeto `chalealtodomorro` já publica o `main` em `chalealtodomorro.pietrotressoldidev.workers.dev`. O passo a passo
+fica em `docs/PUBLICACAO.md`, no repositório da landing. Para ligar na API:
+1. Merge `develop` → `main` na landing.
+2. Workers → `chalealtodomorro` → **Settings → Variables** (de build): `VITE_API_URL=https://api.seudominio.com.br`
+   e `VITE_SITE_URL=https://seudominio.com.br`.
+3. **Settings → Domains & Routes → Add → Custom domain**: `seudominio.com.br` e `www.seudominio.com.br`.
+4. Gere um build novo (push no `main` ou **Deployments → Retry**).
+
+### Portal: Cloudflare Pages
+Faça o 8.1 e o 8.2 só para o **portal**. A coluna da landing fica de referência, caso um dia ela migre para o Pages.
 
 | | Landing | Portal |
 |---|---|---|
