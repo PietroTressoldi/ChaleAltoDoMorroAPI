@@ -191,6 +191,9 @@ builder.Services.AddScoped<SrvDashboard>();
 builder.Services.AddScoped<SrvGallery>();
 builder.Services.AddScoped<SrvVideo>();
 
+// Atrás do Caddy: o IP do visitante e o "https" chegam nos headers X-Forwarded-* (ver ForwardedHeadersSetup).
+builder.Services.Configure<ForwardedHeadersOptions>(ForwardedHeadersSetup.Configure);
+
 builder.Services.AddRateLimiter(options =>
 {
     // O padrão é 503 ("o servidor caiu"). 429 diz "você está indo rápido demais".
@@ -268,6 +271,10 @@ if (app.Environment.IsDevelopment())
     DevSeeder seeder = new(db, app.Logger, clock);
     await seeder.SeedAsync();
 }
+
+// Antes de tudo: troca o IP do Caddy pelo do visitante (rate limiting) e o esquema por https (UseHttpsRedirection
+// não redireciona à toa). Sem os headers (dev, sem proxy) não muda nada.
+app.UseForwardedHeaders();
 
 // Primeiro middleware de verdade: precisa "envolver" todos os outros para pegar exceção de qualquer um.
 app.UseExceptionHandler();

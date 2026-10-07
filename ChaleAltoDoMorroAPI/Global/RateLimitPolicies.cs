@@ -9,8 +9,8 @@ public static class RateLimitPolicies
     public const string Password = "password";
     public const string PreReservation = "pre-reservation";
 
-    // Quem é "o cliente": o IP. Atrás de proxy (Caddy/CloudFront, Task 12), o RemoteIpAddress é o do proxy
-    // até existir um UseForwardedHeaders ANTES do UseRateLimiter. Sem isso, todo mundo divide a mesma cota.
+    // Quem é "o cliente": o IP. Atrás do Caddy, o RemoteIpAddress só é o do visitante porque o UseForwardedHeaders
+    // (ForwardedHeadersSetup) roda ANTES do UseRateLimiter. Sem isso, todo mundo dividiria a mesma cota.
     public static string ClientKey(HttpContext http) =>
         http.Connection.RemoteIpAddress?.ToString() ?? "desconhecido";
 

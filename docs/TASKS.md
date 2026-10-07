@@ -480,6 +480,10 @@ ignorar acentos, a extensão `unaccent`).
    - ⚠️ **Obrigatório com o rate limiting da task 11:** atrás do Caddy/CloudFront, sem `UseForwardedHeaders` (antes do
      `UseRateLimiter`, com `KnownProxies`/`KnownNetworks` configurados), todo mundo tem o IP do proxy e divide a mesma
      cota: 5 logins errados de qualquer pessoa bloqueiam o login de todos. A chave fica em `RateLimitPolicies.ClientKey`.
+   - ✅ Feito: `Global/ForwardedHeadersSetup.cs` (confia só nas redes do Docker `172.16.0.0/12` e `192.168.0.0/16`,
+     `ForwardLimit = 1`), `app.UseForwardedHeaders()` como primeiro middleware, testes em `ForwardedHeadersSetupTests`.
+     Produção: `docker-compose.prod.yml` + `Caddyfile` na raiz, passo a passo em `docs/deploy/DEPLOY_HOSTINGER.md`
+     (VPS Hostinger + Cloudflare Pages; plano B na AWS em `docs/deploy/DEPLOY_AWS.md`).
 5. Uploads: disco persistente (volume) ou S3. O `S3FileStorage` **já existe** (pacotes `AWSSDK.S3` e
    `AWSSDK.Extensions.NETCore.Setup`) e é escolhido só por configuração, sem mudar código:
    ```
@@ -500,8 +504,8 @@ ignorar acentos, a extensão `unaccent`).
    Na landing e no portal, `VITE_API_URL` aponta para a API publicada.
 
 **Critérios de aceite**
-- [ ] `docker build` + `docker run` com variáveis de ambiente sobe a API conectada a um Postgres.
-- [ ] Nenhum segredo na imagem.
+- [x] `docker build` + `docker run` com variáveis de ambiente sobe a API conectada a um Postgres.
+- [x] Nenhum segredo na imagem.
 
 ---
 

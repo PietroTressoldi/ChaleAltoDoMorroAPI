@@ -1,0 +1,51 @@
+# Produção (EC2): Postgres + API + Caddy. Passo a passo em docs/deploy/DEPLOY_AWS.md.
+# Os valores vêm do arquivo ".env" ao lado deste (modelo em docs/deploy/.env.example). Nunca commitar o .env.
+#   docker compose -f docker-compose.prod.yml up -d --build
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Defina POSTGRES_DB no .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Defina POSTGRES_USER no .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Sem "ports": o banco não fica aberto para fora. Só a API (mesma rede do Docker) enxerga.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - uploads:/app/wwwroot/uploads   # fotos e vídeos sobrevivem a rebuild e restart
+    # Sem "ports": quem recebe da internet é o Caddy.
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?Defina API_DOMAIN no .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data               # certificado HTTPS guardado (não pede outro a cada restart)
+      - caddy_config:/config
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  uploads:
+  caddy_data:
+  caddy_config:

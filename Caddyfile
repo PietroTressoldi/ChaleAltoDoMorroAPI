@@ -1,0 +1,7 @@
+# Proxy HTTPS da API em produção (docker-compose.prod.yml).
+# O domínio vem da variável API_DOMAIN do .env (ex.: api.chalealtodomorro.com.br).
+# O Caddy pega e renova o certificado sozinho (Let's Encrypt) e repassa tudo para a API na porta 8080, com o IP do
+# visitante no X-Forwarded-For (a API lê pelo UseForwardedHeaders).
+{$API_DOMAIN} {
+	reverse_proxy api:8080
+}

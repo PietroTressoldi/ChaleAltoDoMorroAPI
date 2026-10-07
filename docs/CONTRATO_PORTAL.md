@@ -169,7 +169,7 @@ valem são os gravados na reserva (snapshot).
 - `calculatedTotal`: o total que o `BookingRules` calculou quando a reserva foi criada ou editada. `priceAdjusted` é
   `total != calculatedTotal` (desconto ou outro combinado do admin).
 - `estimatedTotalFromSite` é `null` nas reservas criadas pelo portal, e aí `siteTotalDiverged` é `false`.
-- `attribution` (origem da pré-reserva, UTM): `null` (ou ausente) quando a origem é desconhecida — reservas do portal,
+- `attribution` (origem da pré-reserva, UTM): `null` (ou ausente) quando a origem é desconhecida — reservas do portal sem `trafficSource`,
   pré-reservas antigas ou de navegador sem armazenamento. `source` é sempre um de `meta_ads`, `instagram`, `google`,
   `direct` ou `other`; os `utm*` e `firstVisitAt` (primeira visita, UTC) podem ser `null`. Só existe no detalhe, não na lista.
 
@@ -201,18 +201,25 @@ Reserva criada pelo admin, sem passar pela pré-reserva do site.
   "guest2": { "name": "Bruno Lima", "cpf": null, "phone": null, "email": null },
   "kitId": "8a1b...",
   "total": 1800,
-  "adminNotes": "Fechado pelo WhatsApp, desconto de aniversário"
+  "adminNotes": "Fechado pelo WhatsApp, desconto de aniversário",
+  "trafficSource": "instagram"
 }
 ```
 - `status`: `pending` ou `confirmed`.
 - `guest1`: `name`, `cpf` e `phone` obrigatórios, com as mesmas validações do site. `guest2` é opcional.
 - `total`: opcional. `null` = o total calculado pelo `BookingRules`. Com valor (`>= 0`), vale o informado.
+- `trafficSource` (🆕): opcional. De onde o hóspede veio, informado pelo admin (o código `(ref: IG)` que a landing põe na
+  mensagem do WhatsApp). Um de `meta_ads`, `instagram`, `google`, `direct`, `other`, ou `null` = não sabe. Valor fora
+  da lista → `400` com a chave `TrafficSource`. Grava a origem da reserva com `source` = esse valor e os `utm*` e
+  `firstVisitAt` nulos. O detalhe devolve isso em `attribution`, ou `null` quando não foi informado.
 - Só a disponibilidade é validada. Mínimo de diárias, pacote fechado e datas no passado ficam liberados.
 - → `201 ReservationDetailDto` · `400` formato · `409` noite ocupada (o `detail` diz qual) · `422` sem preço cadastrado
   e sem `total` informado.
 
 ### `PUT /api/admin/reservations/{id}` (🆕 task 21)
-Mesmo corpo do `POST`, **sem** `status`. Substitui tudo: datas, hóspedes, kit, total e notas.
+Mesmo corpo do `POST`, **sem** `status`. Substitui tudo: datas, hóspedes, kit, total, notas e origem.
+- `trafficSource` só vale para reservas com `source: "portal"`. Nas do site ele é **ignorado**: a origem veio da
+  landing (UTM) e não muda.
 - `total: null` **recalcula** o preço. Para manter um valor combinado, o portal manda o total que está na tela.
 - → `200 ReservationDetailDto` · `404` · `409` se a reserva está cancelada ou se as novas datas batem com outra
   reserva confirmada.

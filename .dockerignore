@@ -10,6 +10,7 @@
 docs/
 ChaleAltoDoMorroAPI.Tests/
 docker-compose*.yml
+Caddyfile
 **/.env
 **/appsettings.Development.json
 **/wwwroot/uploads/
