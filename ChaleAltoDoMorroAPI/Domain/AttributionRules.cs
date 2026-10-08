@@ -9,6 +9,8 @@ public record ReservationAttribution(
     string? UtmMedium,
     string? UtmCampaign,
     string? UtmContent,
+    string? UtmTerm,
+    string? Fbclid,
     DateTimeOffset? FirstVisitAt);
 
 // Regra de ouro: atribuição é dado de marketing e NUNCA derruba uma pré-reserva.
@@ -17,6 +19,8 @@ public record ReservationAttribution(
 public static class AttributionRules
 {
     public const int MaxUtmLength = 150;
+    // O fbclid é gerado pela Meta (não digitado) e passa de 150 com folga: ~60 a 250 caracteres.
+    public const int MaxFbclidLength = 500;
     public const string Other = "other";
 
     // Mesmos valores que o site manda (landing: src/lib/attribution.ts).
@@ -24,13 +28,16 @@ public static class AttributionRules
         new HashSet<string>(StringComparer.Ordinal) { "meta_ads", "instagram", "google", "direct", Other };
 
     public static ReservationAttribution Normalize(
-        string? source, string? utmSource, string? utmMedium, string? utmCampaign, string? utmContent, string? firstVisitAt) =>
+        string? source, string? utmSource, string? utmMedium, string? utmCampaign, string? utmContent,
+        string? utmTerm, string? fbclid, string? firstVisitAt) =>
         new(
             NormalizeSource(source),
             CleanText(utmSource),
             CleanText(utmMedium),
             CleanText(utmCampaign),
             CleanText(utmContent),
+            CleanText(utmTerm),
+            CleanText(fbclid, MaxFbclidLength),
             ParseUtc(firstVisitAt));
 
     // Fora da lista (ou vazio) → "other". Comparação exata depois de Trim + minúsculas.
@@ -41,13 +48,13 @@ public static class AttributionRules
     }
 
     // Os UTMs são digitados à mão nos links dos anúncios: tira espaços, vazio vira null e corta no limite da coluna.
-    public static string? CleanText(string? text)
+    public static string? CleanText(string? text, int maxLength = MaxUtmLength)
     {
         var value = text?.Trim();
         if (string.IsNullOrEmpty(value))
             return null;
 
-        return value.Length > MaxUtmLength ? value[..MaxUtmLength] : value;
+        return value.Length > maxLength ? value[..maxLength] : value;
     }
 
     // Chega como texto (e não DateTimeOffset no DTO) de propósito: se o model binding tentasse converter

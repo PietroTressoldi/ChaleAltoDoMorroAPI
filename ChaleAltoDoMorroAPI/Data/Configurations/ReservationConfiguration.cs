@@ -89,6 +89,8 @@ public class ReservationConfiguration : IEntityTypeConfiguration<Reservation>
         builder.Property(reservation => reservation.UtmMedium).HasMaxLength(AttributionRules.MaxUtmLength);
         builder.Property(reservation => reservation.UtmCampaign).HasMaxLength(AttributionRules.MaxUtmLength);
         builder.Property(reservation => reservation.UtmContent).HasMaxLength(AttributionRules.MaxUtmLength);
+        builder.Property(reservation => reservation.UtmTerm).HasMaxLength(AttributionRules.MaxUtmLength);
+        builder.Property(reservation => reservation.Fbclid).HasMaxLength(AttributionRules.MaxFbclidLength);
 
         builder.HasIndex(reservation => new { reservation.Status, reservation.CheckIn });
     }

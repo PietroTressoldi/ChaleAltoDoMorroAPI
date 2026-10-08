@@ -42,6 +42,10 @@ public sealed class AttributionDto
     public string? UtmMedium { get; init; }
     public string? UtmCampaign { get; init; }
     public string? UtmContent { get; init; }
+    public string? UtmTerm { get; init; }
+
+    /// <summary>ID do clique da Meta (parâmetro fbclid que o Facebook/Instagram coloca no link).</summary>
+    public string? Fbclid { get; init; }
 
     /// <summary>Primeira visita (ISO 8601, UTC). Texto para que uma data inválida não derrube o binding.</summary>
     public string? FirstVisitAt { get; init; }

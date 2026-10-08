@@ -67,7 +67,8 @@ public class SrvReservation(AppDbContext db, SrvAvailability srvAvailability, IC
     {
         // Sem attribution no corpo = origem desconhecida (tudo null). Com ela, sempre limpa: nunca recusa.
         var attribution = request.Attribution is { } a
-            ? AttributionRules.Normalize(a.Source, a.UtmSource, a.UtmMedium, a.UtmCampaign, a.UtmContent, a.FirstVisitAt)
+            ? AttributionRules.Normalize(a.Source, a.UtmSource, a.UtmMedium, a.UtmCampaign, a.UtmContent,
+                a.UtmTerm, a.Fbclid, a.FirstVisitAt)
             : null;
 
         Reservation reservation = new()
@@ -99,6 +100,8 @@ public class SrvReservation(AppDbContext db, SrvAvailability srvAvailability, IC
             UtmMedium = attribution?.UtmMedium,
             UtmCampaign = attribution?.UtmCampaign,
             UtmContent = attribution?.UtmContent,
+            UtmTerm = attribution?.UtmTerm,
+            Fbclid = attribution?.Fbclid,
             FirstVisitAt = attribution?.FirstVisitAt,
             Status = ReservationStatus.Pending,
             CreatedAt = timeProvider.GetUtcNow()

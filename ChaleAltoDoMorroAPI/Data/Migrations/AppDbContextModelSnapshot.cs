@@ -558,6 +558,11 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                         .HasColumnType("numeric(10,2)")
                         .HasColumnName("estimated_total_from_site");
 
+                    b.Property<string>("Fbclid")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("fbclid");
+
                     b.Property<DateTimeOffset?>("FirstVisitAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("first_visit_at");
@@ -647,6 +652,11 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)")
                         .HasColumnName("utm_source");
+
+                    b.Property<string>("UtmTerm")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("utm_term");
 
                     b.HasKey("Id")
                         .HasName("pk_reservations");

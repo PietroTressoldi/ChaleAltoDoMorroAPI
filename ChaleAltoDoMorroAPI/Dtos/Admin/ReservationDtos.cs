@@ -179,6 +179,8 @@ public record ReservationAttributionDto(
     string? UtmMedium,
     string? UtmCampaign,
     string? UtmContent,
+    string? UtmTerm,
+    string? Fbclid,
     DateTimeOffset? FirstVisitAt);
 
 // Corpo opcional do POST /confirm (task 16). null (ou corpo vazio) = usar o global de settings/buffer.

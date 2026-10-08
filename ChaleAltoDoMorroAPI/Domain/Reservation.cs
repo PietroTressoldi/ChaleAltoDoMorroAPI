@@ -60,6 +60,8 @@ public class Reservation
     public string? UtmMedium { get; set; }
     public string? UtmCampaign { get; set; }
     public string? UtmContent { get; set; }
+    public string? UtmTerm { get; set; }
+    public string? Fbclid { get; set; }
     public DateTimeOffset? FirstVisitAt { get; set; }
 
     // Transições de status: as regras ficam SÓ aqui, e o serviço nunca muda o Status direto.

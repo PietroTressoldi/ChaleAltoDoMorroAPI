@@ -35,6 +35,15 @@ public class AttributionRulesTests
     }
 
     [Fact]
+    public void Fbclid_aceita_ate_500()
+    {
+        var fbclid = new string('f', 300);
+
+        Assert.Equal(fbclid, AttributionRules.Normalize(null, null, null, null, null, null, fbclid, null).Fbclid);
+        Assert.Equal(AttributionRules.MaxFbclidLength, AttributionRules.CleanText(new string('f', 900), AttributionRules.MaxFbclidLength)!.Length);
+    }
+
+    [Fact]
     public void Data_iso_em_utc_eh_mantida()
     {
         var parsed = AttributionRules.ParseUtc("2026-10-05T14:30:00.000Z");
@@ -64,10 +73,10 @@ public class AttributionRulesTests
     public void Normalize_junta_tudo()
     {
         var attribution = AttributionRules.Normalize(
-            "meta_ads", " meta ", "paid", "inverno-2026", "", "2026-10-05T14:30:00.000Z");
+            "meta_ads", " meta ", "paid", "inverno-2026", "", " casais-poa ", "IwAR0abc", "2026-10-05T14:30:00.000Z");
 
         Assert.Equal(
-            new ReservationAttribution("meta_ads", "meta", "paid", "inverno-2026", null,
+            new ReservationAttribution("meta_ads", "meta", "paid", "inverno-2026", null, "casais-poa", "IwAR0abc",
                 new DateTimeOffset(2026, 10, 5, 14, 30, 0, TimeSpan.Zero)),
             attribution);
     }

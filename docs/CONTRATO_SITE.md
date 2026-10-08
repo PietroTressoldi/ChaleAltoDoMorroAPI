@@ -184,6 +184,7 @@ Corpo enviado pelo site (exatamente assim):
   "attribution": {
     "source": "meta_ads",
     "utmSource": "meta", "utmMedium": "paid", "utmCampaign": "inverno-2026", "utmContent": "video-banheira",
+    "utmTerm": "casais-poa", "fbclid": "IwAR0abc123",
     "firstVisitAt": "2026-10-05T14:30:00.000Z"
   }
 }
@@ -204,7 +205,8 @@ Corpo enviado pelo site (exatamente assim):
 | `secondGuest` | Opcional (`null`). Se vier: `name` obrigatório; `cpf` opcional, mas válido se vier |
 | `attribution` | Opcional (ausente ou `null` = origem desconhecida). De onde o visitante veio, para medir os anúncios. **Nunca causa erro**: valor ruim é limpo, não recusado (`AttributionRules`) |
 | `attribution.source` | `"meta_ads"` \| `"instagram"` \| `"google"` \| `"direct"` \| `"other"`. Qualquer outro valor é gravado como `"other"` |
-| `attribution.utmSource`, `utmMedium`, `utmCampaign`, `utmContent` | Texto ou `null` (digitado à mão nos links dos anúncios). Sem espaços nas pontas, vazio vira `null`, cortado em 150 caracteres |
+| `attribution.utmSource`, `utmMedium`, `utmCampaign`, `utmContent`, `utmTerm` | Texto ou `null` (digitado à mão nos links dos anúncios). Sem espaços nas pontas, vazio vira `null`, cortado em 150 caracteres |
+| `attribution.fbclid` | ID do clique da Meta (parâmetro `fbclid` que o Facebook/Instagram acrescenta ao link), ou `null`. Mesma limpeza, cortado em 500 caracteres |
 | `attribution.firstVisitAt` | Data e hora da **primeira** visita (first-touch), ISO 8601 em UTC, ou `null`. Data que não dá para ler vira `null` (nunca `400`) |
 
 Respostas sugeridas:
