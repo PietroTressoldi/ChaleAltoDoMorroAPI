@@ -10,4 +10,8 @@ public class Guest
     public string? PhoneNumber { get; set; }
     public string? Email { get; set; }
     public string? Notes { get; set; }
+
+    // Só no portal (dado pessoal): nunca em rota pública nem em log.
+    public string? Address { get; set; }
+    public string? SocialMedia { get; set; }
 }

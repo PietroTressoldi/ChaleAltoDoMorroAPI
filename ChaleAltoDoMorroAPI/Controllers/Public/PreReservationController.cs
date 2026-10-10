@@ -48,7 +48,12 @@ public class PreReservationController(SrvReservation srvReservation) : Controlle
 
         StayRejected { error: MinNightsNotMet minNights } => Problem(
             title: "Mínimo de diárias",
-            detail: $"Estadias com sexta ou sábado exigem no mínimo {minNights.Required} diárias.",
+            detail: $"Estadias com noite de sexta, sábado ou domingo exigem no mínimo {minNights.Required} diárias.",
+            statusCode: StatusCodes.Status422UnprocessableEntity),
+
+        StayRejected { error: SundayCheckIn } => Problem(
+            title: "Check-in no domingo",
+            detail: "Não fazemos check-in no domingo. Escolha outra data de entrada.",
             statusCode: StatusCodes.Status422UnprocessableEntity),
 
         StayRejected { error: PastCheckIn } => Problem(

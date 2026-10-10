@@ -4,7 +4,8 @@ public enum NightKind
 {
     Weekday,
     Weekend,
-    Package
+    Package,
+    Extended
 }
 
 /// <summary>Preço de uma noite. No pacote, é o total dividido pelas diárias (só como referência).</summary>

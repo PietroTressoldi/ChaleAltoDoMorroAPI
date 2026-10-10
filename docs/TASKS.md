@@ -42,6 +42,15 @@ A 13 é pequena e destrava o portal no navegador. O Livro Caixa (14 e 15) vem ce
 - [x] 21 — Admin: criar e editar reservas
 - [x] 22 — Origem da pré-reserva (UTM)
 
+### Patch 1 — preços e cadastro (pedido em 10/10/2026)
+Ordem: **23 → 24 → 25 → 26**. A 23 é a maior e muda o preço que o site cobra: publicar a API e a landing **juntas**.
+> Implementadas pelo Claude a pedido do dono em 10/10/2026 ("faça toda a nova atualização"), junto com o portal e a
+> landing. Migration `PrecosHorariosEHospede`. Vale ler o diff como estudo.
+- [x] 23 — Preços novos: desconto de 2+ diárias, domingo no fim de semana e diária estendida
+- [x] 24 — Horários de check-in e check-out configuráveis
+- [x] 25 — Hóspede: endereço e rede social
+- [x] 26 — Folga ao criar e ao editar reserva
+
 ---
 
 ## Task 0 — Arrumar a casa
@@ -809,6 +818,123 @@ retorno dos anúncios.
 
 **Próximo passo natural:** "pré-reservas por origem" no dashboard (`GROUP BY attribution_source`, com a taxa de
 confirmação por origem).
+
+---
+
+## Task 23 — Preços novos: desconto de 2+ diárias, domingo no fim de semana e diária estendida
+
+**Objetivo:** aplicar as regras de preço novas do dono (seções "Vocabulário", "Validação" e "Preço" de `REGRAS_RESERVA.md`):
+- 1 diária na semana = 790. A partir de **2 diárias**, cada noite de semana custa **645** (2 diárias = 1.290 com a cesta).
+  O desconto vale em qualquer estadia de 2+ diárias, até misturada com fim de semana.
+- Noite de **domingo** passa a ser de fim de semana (894,50): sex → dom, sáb → seg = 1.789; sex → seg = 2.683,50.
+- **Sem check-in no domingo** (no site).
+- **Diária estendida**: sex → sáb ou sáb → dom, 1 noite, R$ 1.190, entrada às 10h30 e saída às 16h, **sem** cesta.
+- O desconto e o preço da estendida são editáveis na tela de preços.
+
+**Por que:** a estadia mais longa tem menos custo (uma limpeza e uma troca de enxoval só) e deixa a oferta mais atraente.
+A estendida vende o sábado sozinho sem quebrar o mínimo do fim de semana.
+
+**O que fazer** (formatos em `CONTRATO_SITE.md` e `CONTRATO_PORTAL.md`, seção "Preços")
+1. **Domínio primeiro (TDD):** atualize os testes de `BookingRules` com as tabelas novas de `REGRAS_RESERVA.md` e veja falhar.
+   Alguns testes antigos **mudam de resultado** (dom → seg, sáb → dom, noite de 11/10, quote 08/10 → 11/10). Isso é esperado.
+2. `PricingKind.Extended` e `PricingRule.LongStayPricePerNight` (`decimal?`). `BookingData` ganha os dois valores.
+3. `BookingRules`:
+   - `IsWeekendNight` inclui `Sunday`;
+   - erro novo `SundayCheckIn` em `StayError`, depois do pacote exato (o pacote ganha de tudo);
+   - sex → sáb ou sáb → dom com a regra `extended` = válido, preço fechado e `IncludesColonialBreakfast = false`;
+   - o preço da noite de semana depende do **tamanho da estadia**: `PriceNight` precisa saber se a estadia tem 2+ diárias
+     (novo parâmetro), e o `Quote` passa essa informação;
+   - estendida exige as noites vizinhas livres: `BlockedNight` no `ValidateStay` e `B`/`A = max(x, 1)` no `OccupancyRules`.
+4. Migration `PrecosPatch1`: coluna nova, e o **seed/dados** ganham o `longStayPricePerNight = 645` no weekday, a regra
+   `extended` 1.190 e o label do weekend "(sex, sáb e dom)". Use `migrationBuilder.Sql`/`UpdateData` para a produção.
+5. DTOs e validação: `longStayPricePerNight` opcional, `>= 0` e `<= pricePerNight`; `PUT /api/admin/pricing/extended` funciona.
+6. Mensagem do `SundayCheckIn` no ProblemDetails (PT-BR), igual aos outros erros de estadia.
+
+**Conceitos novos:**
+- Mudar uma regra de negócio com testes já existentes: o teste velho que quebra é a **documentação** da mudança.
+- Migration de **dados** (não só de esquema) para a produção ficar igual ao seed.
+
+**Critérios de aceite**
+- [ ] Todos os casos novos e alterados de `REGRAS_RESERVA.md` passando.
+- [ ] `GET /api/pricing` devolve os 3 itens no formato do contrato.
+- [ ] Pré-reserva dom → seg pelo site → `422` (`SundayCheckIn`). Pelo portal → ok.
+- [ ] Pré-reserva sáb → dom → `201`, total 1.190, sem cesta.
+- [ ] Pré-reserva seg → qua → total 1.290.
+
+**Armadilhas:**
+- O site calcula o mesmo preço (`landing/src/lib/booking.ts`). Se a API for publicada antes da landing, o site mostra um valor
+  e grava outro (o servidor ganha, mas o cliente estranha). **Publicar juntas.**
+- Reservas já gravadas **não** mudam de preço: o `Total` está salvo. Não recalcule nada na migration.
+- `AdminBookingRules` usa o mesmo `PriceNight`: confira os testes dele também.
+- A estendida entra às 10h30 e sai às 16h: as **noites vizinhas precisam estar livres** (regra 8 da
+  "Folga entre hóspedes" em `REGRAS_RESERVA.md`, decidida em 10/10). Não esqueça do `OccupancyRules`.
+
+---
+
+## Task 24 — Horários de check-in e check-out configuráveis
+
+**Objetivo:** o dono edita no portal os horários normais (15h / 12h) e os da diária estendida (10h30 / 16h), e o site
+mostra os horários do banco.
+
+**O que fazer** (contrato: `CONTRATO_PORTAL.md` "Configurações → Horários" e `CONTRATO_SITE.md` `GET /api/schedule`)
+1. `BookingSettings` ganha 4 `TimeOnly`: `CheckInTime`, `CheckOutTime`, `ExtendedCheckInTime`, `ExtendedCheckOutTime`.
+   A migration usa os padrões atuais como `defaultValue`, para a linha que já existe.
+2. `GET`/`PUT /api/admin/settings/schedule`, no mesmo controller e serviço da folga.
+3. `GET /api/schedule` público (devolve objeto).
+
+**Conceitos novos:** `TimeOnly` no EF Core/Npgsql (vira `time without time zone`) e no JSON (`"15:00:00"`).
+
+**Critérios de aceite**
+- [ ] `PUT` com 16:00 → o `GET /api/schedule` devolve `"16:00:00"`.
+- [ ] Banco existente migrado com 15:00 / 12:00 / 10:30 / 16:00.
+
+**Armadilhas:** não colocar horário em `DateTime` (fuso). É hora de parede, `TimeOnly` resolve.
+
+---
+
+## Task 25 — Hóspede: endereço e rede social
+
+**Objetivo:** guardar o endereço e a rede social (ex.: `@anasouza`) do hóspede. São dados **internos**: só no portal, ao
+criar a reserva manual, ao confirmar a pré-reserva e no cadastro do hóspede.
+
+**O que fazer** (contrato: `CONTRATO_PORTAL.md`, confirmação, `POST`/`PUT` de reservas e hóspedes)
+1. `Guest` ganha `Address` (até 300) e `SocialMedia` (até 150), os dois opcionais. Migration `EnderecoERedeSocial`.
+2. Os DTOs de hóspede do **admin** recebem os campos. O DTO da pré-reserva pública **não** recebe.
+3. `POST /confirm` aceita `guest1`/`guest2` com `address` e `socialMedia`. `null` = não mexe.
+4. Detalhe do hóspede e `PATCH /api/admin/guests/{id}` com os dois campos.
+
+**Critérios de aceite**
+- [ ] Confirmar uma pré-reserva com endereço → o detalhe do hóspede mostra o endereço.
+- [ ] Os campos não aparecem em nenhuma rota pública nem em log (regra 7 do `CLAUDE.md`).
+
+**Armadilhas:** o endereço é dado pessoal, igual ao CPF. Não logue o DTO inteiro.
+
+---
+
+## Task 26 — Folga ao criar e ao editar reserva
+
+**Objetivo:** o admin escolhe a folga ("check-in bloqueia a véspera" e "check-out bloqueia a data") ao **criar** uma reserva
+manual e ao **editar** uma reserva, como já faz na confirmação (task 16).
+
+**O que fazer** (regra 7 da "Folga entre hóspedes" em `REGRAS_RESERVA.md`; contrato do `POST`/`PUT` de reservas)
+1. `bufferBeforeNights` e `bufferAfterNights` (0 a 3, `null` = global) no corpo do `POST` e do `PUT`.
+2. Criar já `confirmed` → grava o snapshot. Criar `pending` → guarda o que veio, para o portal sugerir na confirmação.
+3. Editar uma confirmada → revalida a disponibilidade **com a folga nova**, ignorando a própria reserva, na mesma transação.
+4. Reaproveite a conta da confirmação (`OccupancyRules`). Não duplique a regra.
+
+**Critérios de aceite**
+- [ ] Criar confirmada com `bufferAfterNights: 1` → a noite seguinte aparece em `bufferNights` no calendário.
+- [ ] Editar a folga de uma confirmada para cima de outra reserva → `409`.
+- [ ] Teste do caso "folga nova invade outra reserva".
+
+---
+
+## Fora da API (o Claude faz no portal e na landing)
+- **Portal:** tela de preços (desconto 2+, diária estendida, ajuda "2 diárias = R$ 1.290"), tela de horários, endereço e
+  rede social na criação e na confirmação, folga no criar e no editar, e **datas em dd/mm/aaaa** em todas as telas. A data
+  é só de exibição: o JSON continua `AAAA-MM-DD`.
+- **Landing:** `booking.ts` com as regras novas (domingo, desconto, estendida, sem check-in no domingo), horários vindos de
+  `GET /api/schedule` e `types/index.ts` + `docs/API.md` sincronizados com o `CONTRATO_SITE.md`.
 
 ---
 

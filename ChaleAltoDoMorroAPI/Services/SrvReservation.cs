@@ -11,7 +11,7 @@ public class SrvReservation(AppDbContext db, SrvAvailability srvAvailability, IC
 
     public async Task<PreReservationResponse> CreatePreReservation(PostPreReservationRequest request, CancellationToken ct = default)
     {
-        var bookingData = await GetBookingData();
+        var bookingData = await GetBookingData(ct);
 
         //Valida de acordo com as regras do banco o pedido de pré-reserva
         var validateRequestByBookingRules = BookingRules.ValidateStay(request.CheckIn, request.CheckOut, bookingData, brazilClock.Today());
@@ -153,8 +153,10 @@ public class SrvReservation(AppDbContext db, SrvAvailability srvAvailability, IC
         // Regra ausente = null: o BookingRules já trata (sem weekend usa o preço de semana; sem weekday não orça).
         var weekdayRule = pricingRules.FirstOrDefault(p => p.Kind == PricingKind.Weekday);
         var weekendRule = pricingRules.FirstOrDefault(p => p.Kind == PricingKind.Weekend);
+        var extendedRule = pricingRules.FirstOrDefault(p => p.Kind == PricingKind.Extended);
 
-        return new BookingData(weekdayRule?.PricePerNight, weekendRule?.PricePerNight, weekendRule?.MinNights, blockedNights, packageInfo);
+        return new BookingData(weekdayRule?.PricePerNight, weekendRule?.PricePerNight, weekendRule?.MinNights, blockedNights, packageInfo,
+            weekdayRule?.LongStayPricePerNight, extendedRule?.PricePerNight);
     }
 
     private static (PreReservationResponse? ErrorResponse, PackageInfo? package) ValidateRequestPackage(PostPreReservationRequest request, BookingData bookingData)

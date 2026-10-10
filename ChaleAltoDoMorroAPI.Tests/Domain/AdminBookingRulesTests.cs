@@ -25,6 +25,13 @@ public class AdminBookingRulesTests
     }
 
     [Fact]
+    public void Admin_pode_criar_check_in_no_domingo()
+    {
+        Assert.Null(Validate("2026-10-11", "2026-10-12"));
+        Assert.Equal(894.50m, PriceOf("2026-10-11", "2026-10-12")!.Total);
+    }
+
+    [Fact]
     public void Datas_no_passado_sao_aceitas_para_registrar_reserva_antiga()
     {
         Assert.Null(Validate("2026-09-20", "2026-09-22"));
@@ -72,9 +79,10 @@ public class AdminBookingRulesTests
     [Fact]
     public void Sem_total_informado_vale_o_calculado()
     {
+        // sex → sáb pelo admin = diária estendida (task 23)
         var price = PriceOf("2026-10-09", "2026-10-10");
 
-        Assert.Equal(new AdminPrice(Total: 894.50m, CalculatedTotal: 894.50m, NightsTotal: 894.50m), price);
+        Assert.Equal(new AdminPrice(Total: 1190m, CalculatedTotal: 1190m, NightsTotal: 1190m), price);
     }
 
     [Fact]

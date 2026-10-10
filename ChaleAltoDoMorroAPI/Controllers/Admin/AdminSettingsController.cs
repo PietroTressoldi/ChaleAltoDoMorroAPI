@@ -14,4 +14,12 @@ public class AdminSettingsController(SrvSettings srvSettings) : AdminControllerB
     [HttpPut("buffer")]
     public async Task<ActionResult<BufferSettingsDto>> PutBuffer(BufferSettingsDto request, CancellationToken ct) =>
         Ok(await srvSettings.PutBuffer(request, ct));
+
+    [HttpGet("schedule")]
+    public async Task<ActionResult<ScheduleSettingsDto>> GetSchedule(CancellationToken ct) =>
+        Ok(await srvSettings.GetSchedule(ct));
+
+    [HttpPut("schedule")]
+    public async Task<ActionResult<ScheduleSettingsDto>> PutSchedule(ScheduleSettingsDto request, CancellationToken ct) =>
+        Ok(await srvSettings.PutSchedule(request, ct));
 }

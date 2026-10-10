@@ -51,6 +51,8 @@ public class SrvGuest(AppDbContext db, IClock brazilClock)
         {
             Cpf = guest.Cpf,
             Notes = guest.Notes,
+            Address = guest.Address,
+            SocialMedia = guest.SocialMedia,
             Reservations = reservations
         });
     }
@@ -66,6 +68,8 @@ public class SrvGuest(AppDbContext db, IClock brazilClock)
         guest.PhoneNumber = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone;
         guest.Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim();
         guest.Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim();
+        guest.Address = string.IsNullOrWhiteSpace(request.Address) ? null : request.Address.Trim();
+        guest.SocialMedia = string.IsNullOrWhiteSpace(request.SocialMedia) ? null : request.SocialMedia.Trim();
 
         await db.SaveChangesAsync(ct);
 

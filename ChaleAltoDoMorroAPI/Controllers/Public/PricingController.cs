@@ -14,7 +14,7 @@ public class PricingController(AppDbContext db) : ControllerBase
     {
         var pricingRules = await db.PricingRules
             .AsNoTracking()
-            .Select(p => new PricingRuleDto(p.Kind, p.Label, p.PricePerNight, p.MinNights))
+            .Select(p => new PricingRuleDto(p.Kind, p.Label, p.PricePerNight, p.MinNights, p.LongStayPricePerNight))
             .ToListAsync(ct);
 
         return Ok(pricingRules);

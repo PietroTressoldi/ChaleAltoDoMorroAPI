@@ -65,6 +65,22 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("buffer_before_nights");
 
+                    b.Property<TimeOnly>("CheckInTime")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("check_in_time");
+
+                    b.Property<TimeOnly>("CheckOutTime")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("check_out_time");
+
+                    b.Property<TimeOnly>("ExtendedCheckInTime")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("extended_check_in_time");
+
+                    b.Property<TimeOnly>("ExtendedCheckOutTime")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("extended_check_out_time");
+
                     b.HasKey("Id")
                         .HasName("pk_booking_settings");
 
@@ -82,7 +98,11 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                         {
                             Id = 1,
                             BufferAfterNights = 0,
-                            BufferBeforeNights = 0
+                            BufferBeforeNights = 0,
+                            CheckInTime = new TimeOnly(15, 0, 0),
+                            CheckOutTime = new TimeOnly(12, 0, 0),
+                            ExtendedCheckInTime = new TimeOnly(10, 30, 0),
+                            ExtendedCheckOutTime = new TimeOnly(16, 0, 0)
                         });
                 });
 
@@ -306,6 +326,11 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("Address")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("address");
+
                     b.Property<string>("Cpf")
                         .HasMaxLength(11)
                         .HasColumnType("character varying(11)")
@@ -331,6 +356,11 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                         .HasMaxLength(11)
                         .HasColumnType("character varying(11)")
                         .HasColumnName("phone_number");
+
+                    b.Property<string>("SocialMedia")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("social_media");
 
                     b.HasKey("Id")
                         .HasName("pk_guests");
@@ -407,6 +437,11 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("label");
+
+                    b.Property<decimal?>("LongStayPricePerNight")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("long_stay_price_per_night");
 
                     b.Property<int?>("MinNights")
                         .HasColumnType("integer")

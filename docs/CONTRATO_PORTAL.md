@@ -55,6 +55,9 @@ O token vale 60 minutos e não há refresh token. Quando o token vence, o portal
 - `GET /api/admin/pricing/{kind}` → `PricingRuleDto`.
 - `PUT /api/admin/pricing/{kind}` com `{ "label": "...", "pricePerNight": 894.5, "minNights": 2 }` → `PricingRuleDto`.
   - O preço é sempre **por diária**. O portal deixa digitar o total do fim de semana e divide por `minNights`.
+  - 🆕 (task 23) `kind` aceita também `extended` (diária estendida sáb → dom, preço fechado em `pricePerNight`).
+    `weekday` aceita `longStayPricePerNight` (diária de 2+ noites, ex.: 645; `null` = sem desconto, e precisa ser
+    `<= pricePerNight`). O portal mostra "2 diárias na semana: R$ 1.290" como ajuda.
 
 ### Pacotes
 - `GET /api/admin/packages?includePast=false` → `AdminPackageDto[]`.
@@ -176,9 +179,12 @@ valem são os gravados na reserva (snapshot).
 
 ### `POST /api/admin/reservations/{id}/confirm`
 ```json
-{ "bufferBeforeNights": null, "bufferAfterNights": 1 }
+{ "bufferBeforeNights": null, "bufferAfterNights": 1,
+  "guest1": { "address": "Rua X, 100 — Porto Alegre/RS", "socialMedia": "@anasouza" } }
 ```
 - `null` (ou corpo vazio) = usar o valor global de `settings/buffer`. O valor efetivo é **gravado na reserva**.
+- 🆕 (task 25) `guest1` e `guest2` opcionais, cada um só com `address` e `socialMedia`, para completar o cadastro na
+  confirmação. Campo `null` = não mexe no cadastro.
 - → `200 ReservationDetailDto`.
 - `409` quando a reserva não está pendente ou quando as datas (com a folga) batem com outra reserva confirmada. O
   `detail` diz qual noite ou qual reserva está no caminho.
@@ -198,15 +204,20 @@ Reserva criada pelo admin, sem passar pela pré-reserva do site.
 {
   "status": "confirmed",
   "checkIn": "2026-10-09", "checkOut": "2026-10-11",
-  "guest1": { "name": "Ana Souza", "cpf": "52998224725", "phone": "51989098631", "email": null },
+  "guest1": { "name": "Ana Souza", "cpf": "52998224725", "phone": "51989098631", "email": null,
+              "address": "Rua X, 100 — Porto Alegre/RS", "socialMedia": "@anasouza" },
   "guest2": { "name": "Bruno Lima", "cpf": null, "phone": null, "email": null },
   "kitId": "8a1b...",
   "total": 1800,
   "adminNotes": "Fechado pelo WhatsApp, desconto de aniversário",
-  "trafficSource": "instagram"
+  "trafficSource": "instagram",
+  "bufferBeforeNights": null, "bufferAfterNights": 1
 }
 ```
 - `status`: `pending` ou `confirmed`.
+- 🆕 (task 25) `address` (até 300 caracteres) e `socialMedia` (até 150) são opcionais e gravados no **cadastro do hóspede**.
+  Vazio não apaga o que já está no cadastro. O detalhe da reserva devolve os dois em `guest1`/`guest2`.
+- 🆕 (task 26) `bufferBeforeNights` e `bufferAfterNights` (0 a 3, `null` = global) funcionam como na confirmação.
 - `guest1`: `name`, `cpf` e `phone` obrigatórios, com as mesmas validações do site. `guest2` é opcional.
 - `total`: opcional. `null` = o total calculado pelo `BookingRules`. Com valor (`>= 0`), vale o informado.
 - `trafficSource` (🆕): opcional. De onde o hóspede veio, informado pelo admin (o código `(ref: IG)` que a landing põe na
@@ -222,6 +233,8 @@ Mesmo corpo do `POST`, **sem** `status`. Substitui tudo: datas, hóspedes, kit, 
 - `trafficSource` só vale para reservas com `source: "portal"`. Nas do site ele é **ignorado**: a origem veio da
   landing (UTM) e não muda.
 - `total: null` **recalcula** o preço. Para manter um valor combinado, o portal manda o total que está na tela.
+- 🆕 (task 26) Os campos de folga **substituem** os da reserva, como o resto do `PUT`: o portal manda os valores que
+  estão na tela. Numa reserva confirmada, a folga nova revalida a disponibilidade (ignorando a própria reserva) → `409` se bater.
 - → `200 ReservationDetailDto` · `404` · `409` se a reserva está cancelada ou se as novas datas batem com outra
   reserva confirmada.
 
@@ -251,11 +264,13 @@ Mesmo corpo do `POST`, **sem** `status`. Substitui tudo: datas, hóspedes, kit, 
 Mesmo formato do item da lista, mais:
 - `cpf`;
 - `notes`;
+- 🆕 (task 25) `address` e `socialMedia` (só no portal, nunca em rota pública nem em log);
 - `reservations`: um array de `ReservationListItemDto` com todas as reservas, qualquer status, da mais recente para a mais antiga.
 
 ### `PATCH /api/admin/guests/{id}`
 ```json
-{ "name": "...", "phone": "51...", "email": null, "notes": "Prefere espumante moscatel" }
+{ "name": "...", "phone": "51...", "email": null, "notes": "Prefere espumante moscatel",
+  "address": "Rua X, 100 — Porto Alegre/RS", "socialMedia": "@anasouza" }
 ```
 → `200`. O CPF não é editável pelo portal nesta versão.
 
@@ -421,6 +436,11 @@ Um livro por mês. Ele registra **entradas** e **saídas**, e o resultado é o *
 - `PUT /api/admin/settings/buffer` com o mesmo corpo → `200`. Cada valor vai de 0 a 3.
 - "Check-in bloqueia a véspera" = `bufferBeforeNights`. "Check-out bloqueia a data" = `bufferAfterNights`.
 - Mudar o valor global **não altera reservas já confirmadas**, porque cada uma guardou o seu valor na confirmação.
+
+### 🆕 Horários (task 24)
+- `GET /api/admin/settings/schedule` → `{ "checkInTime": "15:00:00", "checkOutTime": "12:00:00", "extendedCheckInTime": "10:30:00", "extendedCheckOutTime": "16:00:00" }`.
+- `PUT /api/admin/settings/schedule` com o mesmo corpo → `200`. Os quatro campos são obrigatórios.
+- Só informativo: aparece no site (`GET /api/schedule`) e não muda nenhuma regra de reserva.
 
 ---
 

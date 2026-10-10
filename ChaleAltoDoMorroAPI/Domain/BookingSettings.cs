@@ -1,4 +1,4 @@
-﻿
+
 namespace ChaleAltoDoMorroAPI.Domain;
 
 // Configurações de reserva que o portal edita. Tabela de UMA linha só (Id sempre 1).
@@ -14,5 +14,16 @@ public class BookingSettings
 
     // "Check-out bloqueia a data": noites livres DEPOIS de cada reserva.
     public int BufferAfterNights { get; set; }
+
+    // Horários (só informativos: aparecem no site e no portal, não mudam regra nenhuma).
+    public TimeOnly CheckInTime { get; set; } = DefaultCheckInTime;
+    public TimeOnly CheckOutTime { get; set; } = DefaultCheckOutTime;
+    public TimeOnly ExtendedCheckInTime { get; set; } = DefaultExtendedCheckInTime;
+    public TimeOnly ExtendedCheckOutTime { get; set; } = DefaultExtendedCheckOutTime;
+
+    public static readonly TimeOnly DefaultCheckInTime = new(15, 0);
+    public static readonly TimeOnly DefaultCheckOutTime = new(12, 0);
+    public static readonly TimeOnly DefaultExtendedCheckInTime = new(10, 30);
+    public static readonly TimeOnly DefaultExtendedCheckOutTime = new(16, 0);
 }
 

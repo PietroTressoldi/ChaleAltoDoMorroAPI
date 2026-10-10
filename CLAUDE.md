@@ -85,14 +85,18 @@ docs/               CONTRATO_SITE.md, CONTRATO_PORTAL.md, REGRAS_RESERVA.md, REG
 7. Dados pessoais (CPF, telefone, e-mail) só aparecem em rotas **autenticadas** e nunca em log.
 
 ## Regras de negócio (resumo — detalhes em `docs/REGRAS_RESERVA.md`)
-- Diária = noite. Check-in a partir das 15h, check-out até as 12h.
-- Semana R$ 790/diária. Fim de semana (noites de sexta e sábado) R$ 1.789 pelas 2 diárias (R$ 894,50 cada),
-  mínimo de 2 diárias quando a estadia tem sexta ou sábado. Valores e mínimo vêm do banco (o portal edita).
+- Diária = noite. Check-in a partir das 15h, check-out até as 12h (editáveis: `settings/schedule`, task 24).
+- Semana R$ 790/diária, **R$ 645 por noite de semana a partir de 2 diárias** (também numa estadia com fim de semana).
+  Fim de semana (noites de **sexta, sábado e domingo**) R$ 894,50 cada (R$ 1.789 pelas 2), mínimo de 2 diárias.
+  **Sem check-in no domingo** (só o site; o admin pode). Valores, mínimo e horários vêm do banco (o portal edita).
+- **Diária estendida** (task 23): 1 noite com entrada na sexta ou no sábado, 10h30 → 16h, R$ 1.190 fechado, sem cesta.
+  Exige as noites vizinhas livres (folga mínima 1/1 no `OccupancyRules`).
 - **Pacote especial** (ex.: feriado emendado): vendido **fechado**, preço total. Se a estadia toca uma noite do
   pacote, tem que ser exatamente o pacote.
 - **Cesta de café colonial** inclusa na chegada a partir de 2 diárias.
 - Kits românticos (Toque de Romance R$ 179, Eu Te Amo R$ 279, Noite Especial R$ 390) são adicionais opcionais.
 - Pré-reserva: hóspede 1 (nome, CPF, telefone obrigatórios; e-mail opcional) + hóspede 2 opcional.
+  Endereço e rede social do hóspede são **só do portal** (task 25), nunca na rota pública.
   Nasce **pendente**. A confirmação é manual, no portal; o WhatsApp é o canal principal com o cliente.
 - Noites ocupadas por reserva = `[checkIn, checkOut)`: o dia do check-out fica livre para outro check-in.
   **Folga entre hóspedes (task 16):** "check-in bloqueia a véspera" e "check-out bloqueia a data",

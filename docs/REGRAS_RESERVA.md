@@ -10,9 +10,12 @@ e "hoje" como parâmetros e devolve o resultado. Assim dá para testar tudo com 
 - **Diária = noite.** Check-in sex + check-out dom = 2 diárias (noites de sexta e sábado).
 - **Noites da estadia** = do dia do check-in até o dia **anterior** ao check-out.
 - **Noite bloqueada** = ninguém dorme nela. Dá para fazer **check-out** nesse dia (sai até as 12h).
-- **Noite de fim de semana** = sexta ou sábado (`DayOfWeek.Friday`/`Saturday`).
+- **Noite de fim de semana** = sexta, sábado ou **domingo** (🆕 patch de preços, task 23).
 - **Noite de pacote** = `pacote.CheckIn <= noite < pacote.CheckOut`.
-- Horários (só informativos): check-in a partir das 15h, check-out até as 12h.
+- **Diária estendida** (🆕 task 23) = estadia de **1 noite** com check-in na **sexta ou no sábado** (sex → sáb ou
+  sáb → dom). Preço fechado (padrão R$ 1.190), entrada às 10h30 e saída às 16h do dia seguinte. **Não** inclui a cesta de café.
+- Horários (só informativos, 🆕 editáveis no portal pela task 24): check-in a partir das 15h e check-out até as 12h.
+  Na diária estendida, a entrada é às 10h30 e a saída às 16h.
 
 ## Validação da estadia (nesta ordem; devolve o PRIMEIRO problema)
 1. **Data inválida** → erro `InvalidDate` (não acontece com `DateOnly` já desserializado, mas trate `default`).
@@ -21,20 +24,32 @@ e "hoje" como parâmetros e devolve o resultado. Assim dá para testar tudo com 
 4. **Alguma noite bloqueada** → `BlockedNight` (informar qual).
 5. **Pacote parcial**: se alguma noite pertence a um pacote e a estadia **não é exatamente** aquele pacote
    (mesmo check-in **e** mesmo check-out) → `PartialPackage` (informar qual).
-6. Se a estadia **é exatamente** um pacote → **válida** (o mínimo de fim de semana não se aplica).
-7. **Mínimo de diárias**: se alguma noite é sexta ou sábado, mínimo = `MinNights` da regra `weekend`
-   (padrão **2** se não houver regra ou o campo for nulo); senão mínimo = 1. Abaixo disso → `MinNights`.
+6. Se a estadia **é exatamente** um pacote → **válida** (o mínimo de fim de semana e o domingo não se aplicam).
+7. 🆕 **Check-in no domingo** → `SundayCheckIn`.
+8. 🆕 Se a estadia é uma **diária estendida** (sex → sáb ou sáb → dom) e existe a regra `extended`: a noite **anterior**
+   e a noite do **dia da saída** precisam estar livres (senão `BlockedNight` com a primeira delas). Se estiverem → **válida**.
+9. **Mínimo de diárias**: se alguma noite é de fim de semana (sex, sáb ou dom), o mínimo é o `MinNights` da regra
+   `weekend` (padrão **2** se não houver regra ou o campo for nulo). Senão, o mínimo é 1. Abaixo disso → `MinNights`.
+
+Essas regras valem para o **site**. O admin (task 21) continua validando só a disponibilidade: pode criar 1 diária na
+sexta ou um check-in no domingo.
 
 ## Preço
 - **Pacote** (estadia = exatamente o pacote): total das diárias = `pacote.Price` (preço fechado).
+- 🆕 **Diária estendida** (sex → sáb ou sáb → dom, com a regra `extended` cadastrada, fora de pacote): total das diárias = `pricePerNight`
+  da regra `extended` (preço fechado), **sem** cesta de café.
 - **Fora de pacote**, cada noite custa:
-  - sexta/sábado → `pricePerNight` da regra `weekend`; se não existir, usa a `weekday`;
-  - demais noites → `pricePerNight` da regra `weekday`;
+  - sexta, sábado ou domingo → `pricePerNight` da regra `weekend`. Se ela não existir, vale a regra `weekday`;
+  - demais noites → `pricePerNight` da regra `weekday`. 🆕 Se a estadia tem **2 ou mais diárias** e a regra `weekday`
+    tem `longStayPricePerNight` (padrão 645), cada noite de semana custa esse valor. Isso vale mesmo quando a estadia
+    mistura semana e fim de semana: qui → sáb = 645 + 894,50;
   - sem regra `weekday` cadastrada → **não dá para orçar** (retorne erro/nulo, não invente valor).
+- O desconto **não** vale para as noites de fim de semana: 2 noites de fim de semana continuam custando 1.789.
 - **Total** = diárias + preço do kit escolhido (**um kit por reserva**, decisão do dono; o site ainda permite
   vários e precisa ser ajustado). Arredondar para centavos (`decimal` já evita o problema
   de ponto flutuante do JavaScript).
-- **Cesta de café colonial** inclusa (entregue na chegada) quando a estadia tem **2 ou mais diárias**.
+- **Cesta de café colonial** inclusa (entregue na chegada) quando a estadia tem **2 ou mais diárias**. A diária
+  estendida não inclui a cesta.
 
 ## Hóspedes
 - Hóspede 1: nome (mín. 2 caracteres, sem contar espaços nas pontas), CPF válido, telefone com 10 ou 11 dígitos.
@@ -75,6 +90,14 @@ O padrão é 0/0, que é exatamente o comportamento de hoje.
    sobre um bloqueio manual. Motivo: bloqueio é uma decisão manual do dono, e o pacote vira reserva quando é vendido.
 6. Como a regra é pura, implemente as contas numa classe de domínio (ex.: `OccupancyRules.OccupiedNights(reserva, gB, gA)`)
    separada de `BookingRules.Nights`, que continua sendo o que se cobra.
+7. 🆕 **Folga escolhida pelo admin** (task 26): ao criar uma reserva pelo portal (e ao editá-la), o admin pode informar
+   `bufferBeforeNights` e `bufferAfterNights`, como já acontece na confirmação. `null` = usar o global. Uma reserva criada
+   já `confirmed` grava o snapshot na hora. Ao editar uma reserva confirmada, a folga nova revalida a disponibilidade
+   ignorando a própria reserva. Uma reserva pendente guarda a folga escolhida, e ela vira o padrão do formulário de confirmação.
+8. 🆕 **Diária estendida exige as noites vizinhas livres** (decidido em 10/10/2026): a entrada às 10h30 bate com o check-out
+   normal das 12h, e a saída às 16h bate com o check-in normal das 15h. Toda diária estendida (do site ou do portal) usa
+   `B = max(B, 1)` e `A = max(A, 1)` nas contas de ocupação. O site recusa a estendida com `BlockedNight` quando a noite
+   anterior ou a do dia da saída está indisponível (regra 8 da validação).
 
 ---
 
@@ -96,7 +119,8 @@ O padrão é 0/0, que é exatamente o comportamento de hoje.
 ## Cenário de referência
 "Hoje" = **quinta, 01/10/2026**.
 
-- Preços: `weekday` = 790; `weekend` = 894,50 com `MinNights = 2`.
+- Preços: `weekday` = 790 com `longStayPricePerNight` = 645; `weekend` = 894,50 com `MinNights = 2`;
+  🆕 `extended` = 1.190.
 - Noites bloqueadas: **14/10/2026** (qua), **24/10/2026** (sáb), **14/11/2026** (sáb).
 - Pacotes:
   - **"Finados"**: check-in **30/10/2026** (sex), check-out **02/11/2026** (seg), preço **2.490** (3 diárias).
@@ -110,11 +134,17 @@ Calendário útil: out/2026 → sex 09, sáb 10, dom 11, seg 12, ter 13, qua 14 
 |---|---|---|---|
 | sex → dom | 2026-10-09 | 2026-10-11 | ok |
 | sáb → seg | 2026-10-10 | 2026-10-12 | ok |
-| sex → sáb (1 diária) | 2026-10-09 | 2026-10-10 | MinNights (exige 2, tem 1, motivo fim de semana) |
-| sáb → dom (1 diária) | 2026-10-10 | 2026-10-11 | MinNights |
+| sex → sáb sem regra `extended` | 2026-10-09 | 2026-10-10 | MinNights (exige 2, tem 1, motivo fim de semana) |
+| 🆕 sáb → dom (diária estendida) | 2026-10-10 | 2026-10-11 | ok |
+| 🆕 sex → sáb (diária estendida) | 2026-10-09 | 2026-10-10 | ok |
+| 🆕 sex → sáb com a noite 08/10 bloqueada | 2026-10-09 | 2026-10-10 | BlockedNight (08/10) |
+| 🆕 sáb → dom com a noite 11/10 bloqueada | 2026-10-10 | 2026-10-11 | BlockedNight (11/10) |
+| 🆕 sáb → dom sem regra `extended` | 2026-10-10 | 2026-10-11 | MinNights |
+| 🆕 sex → seg | 2026-10-09 | 2026-10-12 | ok |
 | qui → sex (noite de quinta) | 2026-10-08 | 2026-10-09 | ok |
 | qui → sáb (quinta + sexta) | 2026-10-08 | 2026-10-10 | ok |
-| dom → seg | 2026-10-11 | 2026-10-12 | ok |
+| 🆕 dom → seg | 2026-10-11 | 2026-10-12 | SundayCheckIn |
+| 🆕 dom → ter | 2026-10-11 | 2026-10-13 | SundayCheckIn |
 | seg → ter | 2026-10-05 | 2026-10-06 | ok |
 
 Mínimo configurável:
@@ -156,8 +186,8 @@ Mínimo configurável:
 | 2026-10-06 (ter) | weekday | 790 |
 | 2026-10-09 (sex) | weekend | 894,50 |
 | 2026-10-10 (sáb) | weekend | 894,50 |
-| 2026-10-11 (dom) | weekday | 790 |
-| 2026-10-12 (seg) | weekday | 790 |
+| 2026-10-11 (dom) | 🆕 weekend | 894,50 |
+| 2026-10-12 (seg) | weekday | 790 (645 numa estadia de 2+ diárias) |
 | 2026-10-31 (noite do pacote) | package | 830 (2.490 ÷ 3, só referência) |
 | 2026-10-09 sem regra `weekend` | weekday | 790 |
 | 2026-10-06 sem nenhuma regra | — | sem preço (não inventa) |
@@ -166,10 +196,16 @@ Mínimo configurável:
 | Caso | Estadia | Kits | Esperado |
 |---|---|---|---|
 | fim de semana | 09/10 → 11/10 | — | 2 diárias `weekend` × 894,50 = **1.789**; total 1.789; **com** cesta de café; sem pacote |
-| semana + fim de semana + kit | 08/10 → 11/10 | Toque de Romance (179) | diárias: 1 × weekday 790 + 2 × weekend 1.789 = **2.579**; kits 179; **total 2.758** |
+| 🆕 sáb → seg | 10/10 → 12/10 | — | 2 × weekend 894,50 = **1.789**; com cesta |
+| 🆕 sex → seg | 09/10 → 12/10 | — | 3 × weekend 894,50 = **2.683,50**; com cesta |
+| 🆕 diária estendida | 10/10 → 11/10 ou 09/10 → 10/10 | — | uma linha "diária estendida" = **1.190**; **sem** cesta |
+| semana + fim de semana + kit | 08/10 → 11/10 | Toque de Romance (179) | 🆕 diárias: 1 × weekday **645** + 2 × weekend 1.789 = **2.434**; kits 179; **total 2.613** |
+| 🆕 qui → sáb | 08/10 → 10/10 | — | 645 + 894,50 = **1.539,50**; com cesta |
 | pacote | 30/10 → 02/11 | — | uma linha "pacote Finados, 3 diárias" = **2.490**; total 2.490; pacote = Finados |
-| 1 diária | 06/10 → 07/10 | — | **sem** cesta de café |
-| valores quebrados | 06/10 → 09/10 com weekday = 894,50 | — | 3 × 894,50 = **2.683,50** |
+| 1 diária | 06/10 → 07/10 | — | **790**, **sem** cesta de café |
+| 🆕 2 diárias na semana | 05/10 → 07/10 | — | 2 × 645 = **1.290**; com cesta |
+| 🆕 2 diárias sem `longStayPricePerNight` | 05/10 → 07/10 | — | 2 × 790 = **1.580** |
+| valores quebrados | 06/10 → 09/10 com weekday = 894,50 e sem `longStayPricePerNight` | — | 3 × 894,50 = **2.683,50** |
 | sem preços cadastrados | 06/10 → 08/10 | — | sem orçamento |
 
 ## CPF
@@ -212,6 +248,15 @@ Mesmo cenário de referência ("hoje" = 01/10/2026). Reserva confirmada **R**: 0
 | folga sobre bloqueio manual | 0/1 | 0/1 | 08, 09, 10, 11 | — | confirmar R com bloqueio manual em 11/10 → ok (regra 5) |
 | preço de R com folga 0/1 | 0/1 | — | — | — | continua **2 diárias**, 1.789 (a folga não é cobrada) |
 
+🆕 Diária estendida (regra 8), globais 0/0:
+
+| Caso | Esperado |
+|---|---|
+| R estendida 10/10 → 11/10 com folga 0/0 confirmada | publica as noites **09**, 10 e **11** |
+| estendida nova 10/10 → 11/10, com a noite 09/10 bloqueada (reserva ou bloqueio manual) | BlockedNight (09/10) |
+| estendida nova 10/10 → 11/10, com a noite 08/10 ocupada (qui → sex) | ok |
+| confirmar a estendida com outra confirmada 08/10 → 10/10 (sai no sábado) | 409: a sexta da estendida está ocupada |
+
 Confirmação (task 9) com o global 0/1: uma pendente P de 11/10 → 12/10, com R já confirmada (0/1) → `409` (P invade a
 folga de R). Se R tivesse sido confirmada com `bufferAfterNights: 0` → ok.
 
@@ -220,7 +265,8 @@ Com o cenário de referência (preços 790 / 894,50, 14/10 e 24/10 bloqueadas, F
 
 | Caso | Entrada | Esperado |
 |---|---|---|
-| sexta → sábado (1 diária) | 09/10 → 10/10, sem `total` | ok, total 894,50, sem cesta |
+| sexta → sábado (1 diária) | 09/10 → 10/10, sem `total` | ok, 🆕 diária estendida 1.190, sem cesta |
+| 🆕 check-in no domingo | 11/10 → 12/10, sem `total` | ok (o admin pode), total 894,50 |
 | sobre noite bloqueada | 13/10 → 15/10 | 409 (14/10) |
 | sobre reserva confirmada | outra confirmada em 09/10 → 11/10; nova 10/10 → 12/10 | 409 (10/10) |
 | datas no passado | 20/09 → 22/09 | ok (registro de reserva antiga) |

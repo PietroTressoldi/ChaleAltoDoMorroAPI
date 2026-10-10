@@ -14,9 +14,11 @@ public class BookingRulesValidateStayTests
     [Theory]
     [InlineData("2026-10-09", "2026-10-11")] // sex → dom
     [InlineData("2026-10-10", "2026-10-12")] // sáb → seg
+    [InlineData("2026-10-09", "2026-10-12")] // sex → seg
+    [InlineData("2026-10-09", "2026-10-10")] // sex → sáb (diária estendida)
+    [InlineData("2026-10-10", "2026-10-11")] // sáb → dom (diária estendida)
     [InlineData("2026-10-08", "2026-10-09")] // qui → sex (só a noite de quinta)
     [InlineData("2026-10-08", "2026-10-10")] // qui → sáb (quinta + sexta)
-    [InlineData("2026-10-11", "2026-10-12")] // dom → seg
     [InlineData("2026-10-05", "2026-10-06")] // seg → ter
     public void Estadia_valida_de_semana_e_fim_de_semana(string checkIn, string checkOut)
     {
@@ -26,11 +28,40 @@ public class BookingRulesValidateStayTests
     [Theory]
     [InlineData("2026-10-09", "2026-10-10")] // sex → sáb
     [InlineData("2026-10-10", "2026-10-11")] // sáb → dom
-    public void Fim_de_semana_com_uma_diaria_exige_minimo(string checkIn, string checkOut)
+    public void Sem_diaria_estendida_fim_de_semana_com_uma_diaria_exige_minimo(string checkIn, string checkOut)
     {
-        var error = Assert.IsType<MinNightsNotMet>(Validate(checkIn, checkOut));
+        var error = Assert.IsType<MinNightsNotMet>(Validate(checkIn, checkOut, ScenarioData(extended: null)));
         Assert.Equal(2, error.Required);
         Assert.Equal(1, error.Actual);
+    }
+
+    [Theory]
+    [InlineData("2026-10-09", "2026-10-10", "2026-10-08")] // sex → sáb: quinta ocupada
+    [InlineData("2026-10-09", "2026-10-10", "2026-10-10")] // sex → sáb: sábado ocupado
+    [InlineData("2026-10-10", "2026-10-11", "2026-10-09")] // sáb → dom: sexta ocupada
+    [InlineData("2026-10-10", "2026-10-11", "2026-10-11")] // sáb → dom: domingo ocupado
+    public void Diaria_estendida_exige_as_noites_vizinhas_livres(string checkIn, string checkOut, string blocked)
+    {
+        var data = ScenarioData() with { BlockedNights = new HashSet<DateOnly> { D(blocked) } };
+
+        var error = Assert.IsType<BlockedNight>(Validate(checkIn, checkOut, data));
+        Assert.Equal(D(blocked), error.Night);
+    }
+
+    [Theory]
+    [InlineData("2026-10-11", "2026-10-12")] // dom → seg
+    [InlineData("2026-10-11", "2026-10-13")] // dom → ter
+    public void Check_in_no_domingo_eh_recusado(string checkIn, string checkOut)
+    {
+        Assert.IsType<SundayCheckIn>(Validate(checkIn, checkOut));
+    }
+
+    [Fact]
+    public void Pacote_que_comeca_no_domingo_vale()
+    {
+        var domingo = new PackageInfo(Guid.Empty, "Domingo", D("2026-10-18"), D("2026-10-20"), 1500m);
+
+        Assert.Null(Validate("2026-10-18", "2026-10-20", ScenarioData() with { Packages = [domingo] }));
     }
 
     [Fact]
@@ -46,7 +77,7 @@ public class BookingRulesValidateStayTests
     public void Sem_regra_de_fim_de_semana_a_sexta_exige_o_minimo_padrao_de_2()
     {
         var error = Assert.IsType<MinNightsNotMet>(
-            Validate("2026-10-09", "2026-10-10", ScenarioData(weekend: null, weekendMinNights: null)));
+            Validate("2026-10-09", "2026-10-10", ScenarioData(weekend: null, weekendMinNights: null, extended: null)));
         Assert.Equal(2, error.Required);
     }
 

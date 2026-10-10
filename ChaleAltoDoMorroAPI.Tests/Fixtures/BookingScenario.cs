@@ -21,13 +21,18 @@ public static class BookingScenario
     public static readonly KitInfo ToqueDeRomance =
         new(Guid.Parse("00000000-0000-0000-0000-00000000c170"), "Kit Toque de Romance", 179m);
 
-    public static BookingData ScenarioData(decimal? weekday = 790m, decimal? weekend = 894.50m, int? weekendMinNights = 2) =>
+    // Patch 1 (task 23): diária de semana 645 em estadia de 2+ diárias e diária estendida 1.190.
+    public static BookingData ScenarioData(
+        decimal? weekday = 790m, decimal? weekend = 894.50m, int? weekendMinNights = 2,
+        decimal? longStay = 645m, decimal? extended = 1190m) =>
         new(
             WeekdayPrice: weekday,
             WeekendPrice: weekend,
             WeekendMinNights: weekendMinNights,
             BlockedNights: new HashSet<DateOnly> { D("2026-10-14"), D("2026-10-24"), D("2026-11-14") },
-            Packages: [Finados, Indisponivel]);
+            Packages: [Finados, Indisponivel],
+            WeekdayLongStayPrice: longStay,
+            ExtendedPrice: extended);
 
     // [InlineData] só aceita constantes, então as datas chegam como texto "AAAA-MM-DD".
     // ParseExact + InvariantCulture: não depende da cultura da máquina que roda os testes.

@@ -104,17 +104,21 @@ public class SrvAdminReservation(AppDbContext db, SrvAvailability srvAvailabilit
         await srvAvailability.LockCalendar(ct);
 
         // Lida DEPOIS do cadeado: se alguém cancelou esta reserva enquanto esperávamos, já enxergamos.
-        var reservation = await db.Reservations.FirstOrDefaultAsync(r => r.Id == id, ct);
+        // Include: a confirmação pode completar o cadastro dos hóspedes (endereço e rede social, task 25).
+        var reservation = await db.Reservations
+            .Include(r => r.Guest1)
+            .Include(r => r.Guest2)
+            .FirstOrDefaultAsync(r => r.Id == id, ct);
         if (reservation is null)
             return new NotFound<ReservationDetailDto>("Reserva não encontrada.");
 
         if (reservation.Status != ReservationStatus.Pending)
             return new Conflict<ReservationDetailDto>($"Só dá para confirmar uma reserva pendente. Esta está {StatusText(reservation.Status)}.");
 
-        // Folga efetiva (task 16): a do pedido ou, se não veio, a global. Ela vira o snapshot da reserva.
+        // Folga efetiva (task 16): a do pedido, a escolhida na criação (task 26) ou a global. Ela vira o snapshot da reserva.
         var settings = await srvSettings.GetBookingSettings(ct);
-        var before = request?.BufferBeforeNights ?? settings.BufferBeforeNights;
-        var after = request?.BufferAfterNights ?? settings.BufferAfterNights;
+        var before = request?.BufferBeforeNights ?? reservation.BufferBeforeNights ?? settings.BufferBeforeNights;
+        var after = request?.BufferAfterNights ?? reservation.BufferAfterNights ?? settings.BufferAfterNights;
 
         // Revalida: outra reserva pode ter sido confirmada nessas datas depois que esta chegou, e agora a folga
         // de cada lado também conta (regra 3). Esta reserva ainda está pendente, então não "bate com ela mesma".
@@ -132,6 +136,9 @@ public class SrvAdminReservation(AppDbContext db, SrvAvailability srvAvailabilit
         reservation.TryConfirm(timeProvider.GetUtcNow());
         reservation.BufferBeforeNights = before;
         reservation.BufferAfterNights = after;
+        ApplyExtras(reservation.Guest1, request?.Guest1);
+        if (reservation.Guest2 is not null)
+            ApplyExtras(reservation.Guest2, request?.Guest2);
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct); // solta o cadeado
 
@@ -186,20 +193,15 @@ public class SrvAdminReservation(AppDbContext db, SrvAvailability srvAvailabilit
             CreatedAt = timeProvider.GetUtcNow()
         };
 
-        var problem = await ApplyForm(reservation, request, ct);
+        var confirmed = request.Status == ReservationStatus.Confirmed;
+        var problem = await ApplyForm(reservation, request, confirmed, ct);
         if (problem is not null)
             return problem;
 
         // Nasce pendente e, se o admin pediu, passa pela MESMA transição da rota de confirmar.
-        // A disponibilidade do ApplyForm já usou as noites publicadas, que contam a folga GLOBAL (regra 4):
-        // então o snapshot de uma reserva criada confirmada é o global.
-        if (request.Status == ReservationStatus.Confirmed)
-        {
-            var settings = await srvSettings.GetBookingSettings(ct);
+        // O snapshot da folga já foi gravado pelo ApplyForm.
+        if (confirmed)
             reservation.TryConfirm(reservation.CreatedAt);
-            reservation.BufferBeforeNights = settings.BufferBeforeNights;
-            reservation.BufferAfterNights = settings.BufferAfterNights;
-        }
 
         db.Reservations.Add(reservation);
         await db.SaveChangesAsync(ct);
@@ -226,7 +228,7 @@ public class SrvAdminReservation(AppDbContext db, SrvAvailability srvAvailabilit
         if (reservation.Status == ReservationStatus.Cancelled)
             return new Conflict<ReservationDetailDto>("Não dá para editar uma reserva cancelada.");
 
-        var problem = await ApplyForm(reservation, request, ct);
+        var problem = await ApplyForm(reservation, request, reservation.Status == ReservationStatus.Confirmed, ct);
         if (problem is not null)
             return problem;
 
@@ -240,16 +242,34 @@ public class SrvAdminReservation(AppDbContext db, SrvAvailability srvAvailabilit
     /// Valida o formulário e preenche a reserva (nova ou existente). Devolve o erro, ou null se deu tudo certo.
     /// É o miolo comum do criar e do editar: as regras ficam num lugar só.
     /// </summary>
-    private async Task<AdminResult<ReservationDetailDto>?> ApplyForm(Reservation reservation, SaveReservationRequest request, CancellationToken ct)
+    /// <param name="confirmed">A reserva fica (ou já está) confirmada: a folga escolhida vira o snapshot e é validada.</param>
+    private async Task<AdminResult<ReservationDetailDto>?> ApplyForm(Reservation reservation, SaveReservationRequest request, bool confirmed, CancellationToken ct)
     {
         // 1. Datas: para o admin, só a disponibilidade. A própria reserva não conta como ocupação
         //    (senão editar só o telefone de uma confirmada daria 409). Numa reserva nova o Id ainda é vazio: não ignora nada.
-        var unavailable = (await srvAvailability.GetUnavailableNights(ct, ignoreReservationId: reservation.Id)).ToHashSet();
+        //    Confirmada: a folga ESCOLHIDA (task 26) contra cada reserva confirmada (regra 3), igual à rota de confirmar.
+        //    Pendente: ainda não ocupa nada, então basta não cair numa noite publicada como indisponível.
+        var settings = await srvSettings.GetBookingSettings(ct);
+        var before = request.BufferBeforeNights ?? settings.BufferBeforeNights;
+        var after = request.BufferAfterNights ?? settings.BufferAfterNights;
 
-        switch (AdminBookingRules.ValidateStay(request.CheckIn, request.CheckOut, unavailable))
+        var unavailable = confirmed
+            ? new HashSet<DateOnly>()
+            : (await srvAvailability.GetUnavailableNights(ct, ignoreReservationId: reservation.Id)).ToHashSet();
+
+        var stayError = AdminBookingRules.ValidateStay(request.CheckIn, request.CheckOut, unavailable);
+        if (stayError is null && confirmed)
+            stayError = await srvAvailability.ValidateConfirmation(
+                new BufferedStay(request.CheckIn, request.CheckOut, before, after), reservation.Id, ct);
+
+        switch (stayError)
         {
             case BlockedNight blocked:
                 return new Conflict<ReservationDetailDto>($"A noite de {blocked.Night:dd/MM/yyyy} já está bloqueada ou com outra reserva confirmada.");
+            case ReservationConflict other:
+                return new Conflict<ReservationDetailDto>(
+                    $"Com a folga entre hóspedes, as datas batem com a reserva confirmada de " +
+                    $"{other.CheckIn:dd/MM/yyyy} a {other.CheckOut:dd/MM/yyyy}.");
             case CheckOutNotAfterCheckIn:
                 return new Invalid<ReservationDetailDto>("O check-out precisa ser depois do check-in.");
             case InvalidDate:
@@ -311,6 +331,10 @@ public class SrvAdminReservation(AppDbContext db, SrvAvailability srvAvailabilit
 
         reservation.AdminNotes = string.IsNullOrWhiteSpace(request.AdminNotes) ? null : request.AdminNotes.Trim();
 
+        // Folga: confirmada grava o valor efetivo (snapshot); pendente guarda o que veio, e a confirmação usa como padrão.
+        reservation.BufferBeforeNights = confirmed ? before : request.BufferBeforeNights;
+        reservation.BufferAfterNights = confirmed ? after : request.BufferAfterNights;
+
         return null;
     }
 
@@ -345,8 +369,18 @@ public class SrvAdminReservation(AppDbContext db, SrvAvailability srvAvailabilit
             guest.PhoneNumber = request.Phone;
         if (request.Email is not null)
             guest.Email = request.Email;
+        ApplyExtras(guest, new GuestExtrasRequest(request.Address, request.SocialMedia));
 
         return guest;
+    }
+
+    // Endereço e rede social (task 25). Vazio não apaga: o cadastro se edita de verdade na tela do hóspede.
+    private static void ApplyExtras(Guest guest, GuestExtrasRequest? extras)
+    {
+        if (!string.IsNullOrWhiteSpace(extras?.Address))
+            guest.Address = extras.Address.Trim();
+        if (!string.IsNullOrWhiteSpace(extras?.SocialMedia))
+            guest.SocialMedia = extras.SocialMedia.Trim();
     }
 
     // ---------- Apoio ----------
@@ -405,11 +439,13 @@ public class SrvAdminReservation(AppDbContext db, SrvAvailability srvAvailabilit
     {
         var bookingData = await LoadPricingData(reservation.CheckIn, reservation.CheckOut, ct);
 
-        return BookingRules.Nights(reservation.CheckIn, reservation.CheckOut)
-            .Select(night => BookingRules.PriceNight(night, bookingData))
-            .OfType<NightPrice>() // sem preço cadastrado a noite fica de fora (não inventa valor)
-            .Select(p => new NightBreakdownDto(p.Date, p.Kind, p.Price))
-            .ToList();
+        // Pelo Quote, e não noite a noite: o desconto de 2+ diárias e a estendida dependem da estadia inteira.
+        // Sem preço cadastrado não há quote, e a lista sai vazia (não inventa valor).
+        var quote = BookingRules.Quote(reservation.CheckIn, reservation.CheckOut, bookingData);
+
+        return quote is null
+            ? []
+            : quote.Nights.Select(p => new NightBreakdownDto(p.Date, p.Kind, p.Price)).ToList();
     }
 
     /// <summary>
@@ -426,14 +462,18 @@ public class SrvAdminReservation(AppDbContext db, SrvAvailability srvAvailabilit
             .Select(p => new PackageInfo(p.Id, p.Name, p.CheckIn, p.CheckOut, p.Price))
             .ToListAsync(ct);
 
+        var weekdayRule = pricingRules.FirstOrDefault(p => p.Kind == PricingKind.Weekday);
+
         return new BookingData(
-            pricingRules.FirstOrDefault(p => p.Kind == PricingKind.Weekday)?.PricePerNight,
+            weekdayRule?.PricePerNight,
             pricingRules.FirstOrDefault(p => p.Kind == PricingKind.Weekend)?.PricePerNight,
             WeekendMinNights: null,
             BlockedNights: new HashSet<DateOnly>(),
-            Packages: packages);
+            Packages: packages,
+            WeekdayLongStayPrice: weekdayRule?.LongStayPricePerNight,
+            ExtendedPrice: pricingRules.FirstOrDefault(p => p.Kind == PricingKind.Extended)?.PricePerNight);
     }
 
     private static GuestReservationDetailDto ToGuestDto(Guest guest) =>
-        new(guest.Id, guest.Name, guest.Cpf, guest.PhoneNumber, guest.Email);
+        new(guest.Id, guest.Name, guest.Cpf, guest.PhoneNumber, guest.Email, guest.Address, guest.SocialMedia);
 }

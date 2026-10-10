@@ -34,4 +34,30 @@ public class SrvSettings(AppDbContext db)
 
         return new BufferSettingsDto(settings.BufferBeforeNights, settings.BufferAfterNights);
     }
+
+    // ---------- Horários (task 24) ----------
+
+    public async Task<ScheduleSettingsDto> GetSchedule(CancellationToken ct = default) =>
+        ToScheduleDto(await GetBookingSettings(ct));
+
+    public async Task<ScheduleSettingsDto> PutSchedule(ScheduleSettingsDto request, CancellationToken ct = default)
+    {
+        var settings = await db.BookingSettings.FirstOrDefaultAsync(s => s.Id == BookingSettings.SingletonId, ct);
+        if (settings is null)
+        {
+            settings = new BookingSettings();
+            db.BookingSettings.Add(settings);
+        }
+
+        settings.CheckInTime = request.CheckInTime;
+        settings.CheckOutTime = request.CheckOutTime;
+        settings.ExtendedCheckInTime = request.ExtendedCheckInTime;
+        settings.ExtendedCheckOutTime = request.ExtendedCheckOutTime;
+        await db.SaveChangesAsync(ct);
+
+        return ToScheduleDto(settings);
+    }
+
+    private static ScheduleSettingsDto ToScheduleDto(BookingSettings s) =>
+        new(s.CheckInTime, s.CheckOutTime, s.ExtendedCheckInTime, s.ExtendedCheckOutTime);
 }

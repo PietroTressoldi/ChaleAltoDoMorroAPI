@@ -25,6 +25,9 @@ public class PricingRuleConfiguration : IEntityTypeConfiguration<PricingRule>
         builder.Property(rule => rule.PricePerNight)
             .HasPrecision(10, 2);
 
+        builder.Property(rule => rule.LongStayPricePerNight)
+            .HasPrecision(10, 2);
+
         builder.HasIndex(rule => rule.Kind)
             .IsUnique();
     }

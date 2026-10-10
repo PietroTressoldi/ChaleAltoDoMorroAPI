@@ -40,19 +40,28 @@ public class DevSeeder(AppDbContext db, ILogger log, IClock clock, CancellationT
             Label = "Diária durante a semana",
             Kind = PricingKind.Weekday,
             MinNights = null,
-            PricePerNight = 790
+            PricePerNight = 790,
+            LongStayPricePerNight = 645
         };
 
         PricingRule weekendPricingRule = new()
         {
-            Label = "Diária final de semana (sex, sáb)",
+            Label = "Fim de semana (sex, sáb e dom)",
             Kind = PricingKind.Weekend,
             MinNights = 2,
             PricePerNight = 894.5M
         };
 
+        PricingRule extendedPricingRule = new()
+        {
+            Label = "Diária estendida (sex → sáb ou sáb → dom)",
+            Kind = PricingKind.Extended,
+            PricePerNight = 1190
+        };
+
         await db.PricingRules.AddAsync(weekdayPricingRule, ct);
         await db.PricingRules.AddAsync(weekendPricingRule, ct);
+        await db.PricingRules.AddAsync(extendedPricingRule, ct);
 
     }
 

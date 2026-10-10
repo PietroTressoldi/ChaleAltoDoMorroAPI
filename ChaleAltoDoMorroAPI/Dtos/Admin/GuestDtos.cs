@@ -44,10 +44,12 @@ public record GuestDetailDto : GuestListItemDto
 
     public string? Cpf { get; init; }
     public string? Notes { get; init; }
+    public string? Address { get; init; }
+    public string? SocialMedia { get; init; }
     public IReadOnlyList<ReservationListItemDto> Reservations { get; init; } = [];
 }
 
-// PATCH /api/admin/guests/{id}: o formulário manda os 4 campos; vazio apaga (e-mail, telefone, notas).
+// PATCH /api/admin/guests/{id}: o formulário manda todos os campos; vazio apaga (e-mail, telefone, notas, endereço, rede social).
 // O CPF não entra: não é editável pelo portal nesta versão.
 public sealed class UpdateGuestRequest : IValidatableObject
 {
@@ -64,6 +66,12 @@ public sealed class UpdateGuestRequest : IValidatableObject
 
     [StringLength(1000, ErrorMessage = "Notas com no máximo 1000 caracteres.")]
     public string? Notes { get; init; }
+
+    [StringLength(300, ErrorMessage = "Endereço com no máximo 300 caracteres.")]
+    public string? Address { get; init; }
+
+    [StringLength(150, ErrorMessage = "Rede social com no máximo 150 caracteres.")]
+    public string? SocialMedia { get; init; }
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {

@@ -34,17 +34,28 @@ Sem preço de `weekday` o site não consegue orçar e mostra só o botão do Wha
 
 ```json
 [
-  { "kind": "weekday", "label": "Diária durante a semana", "pricePerNight": 790 },
-  { "kind": "weekend", "label": "Fim de semana (sex e sáb)", "pricePerNight": 894.5, "minNights": 2 }
+  { "kind": "weekday", "label": "Diária durante a semana", "pricePerNight": 790, "longStayPricePerNight": 645 },
+  { "kind": "weekend", "label": "Fim de semana (sex, sáb e dom)", "pricePerNight": 894.5, "minNights": 2 },
+  { "kind": "extended", "label": "Diária estendida (sex → sáb ou sáb → dom)", "pricePerNight": 1190 }
 ]
 ```
 
 | Campo | Tipo | Obrig. | Observação |
 |---|---|---|---|
-| `kind` | `"weekday"` \| `"weekend"` | sim | Fim de semana = noites de **sexta e sábado** |
+| `kind` | `"weekday"` \| `"weekend"` \| 🆕 `"extended"` | sim | Fim de semana = noites de **sexta, sábado e domingo**. `extended` = diária estendida: 1 noite com entrada na sexta ou no sábado (preço fechado, sem cesta) |
 | `label` | string | sim | Texto livre |
-| `pricePerNight` | number | sim | Valor de cada diária. No portal, o fim de semana pode ser digitado como total ("R$ 1.789 pelas 2 diárias") e gravado como `total ÷ minNights` |
-| `minNights` | number | não | Só no `weekend`. Mínimo de diárias quando a estadia tem sexta ou sábado. Padrão 2 |
+| `pricePerNight` | number | sim | Valor de cada diária. No portal, o fim de semana pode ser digitado como total ("R$ 1.789 pelas 2 diárias") e gravado como `total ÷ minNights`. No `extended`, é o preço fechado da estadia |
+| `minNights` | number | não | Só no `weekend`. Mínimo de diárias quando a estadia tem noite de fim de semana. Padrão 2 |
+| 🆕 `longStayPricePerNight` | number | não | Só no `weekday`. Valor de cada noite de semana quando a estadia tem 2 ou mais diárias. Ausente = sem desconto |
+
+Regras que o site precisa repetir (`REGRAS_RESERVA.md`): **não** deixar check-in no domingo, e aceitar 1 diária
+na sexta ou no sábado só quando existir o item `extended` e as noites vizinhas estiverem livres.
+
+### 🆕 `GET /api/schedule` — horários (task 24)
+```json
+{ "checkInTime": "15:00:00", "checkOutTime": "12:00:00", "extendedCheckInTime": "10:30:00", "extendedCheckOutTime": "16:00:00" }
+```
+`TimeOnly` no formato padrão do `System.Text.Json` (`"HH:mm:ss"`). O site mostra "a partir das 15h" etc. É objeto, não array.
 
 ### `GET /api/blocked-dates` — noites indisponíveis
 Inclui bloqueios manuais **e** as noites das pré-reservas **confirmadas**.

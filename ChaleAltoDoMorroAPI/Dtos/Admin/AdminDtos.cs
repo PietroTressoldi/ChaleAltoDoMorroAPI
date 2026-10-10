@@ -10,7 +10,8 @@ namespace ChaleAltoDoMorroAPI.Dtos.Admin;
 public record PutPricingRuleRequest(
     [Required, StringLength(100)] string Label,
     [Range(typeof(decimal), "0.01", "99999", ParseLimitsInInvariantCulture = true, ErrorMessage = "O preço por diária precisa ser maior que zero.")] decimal PricePerNight,
-    [Range(1, 7, ErrorMessage = "O mínimo de diárias fica entre 1 e 7.")] int? MinNights);
+    [Range(1, 7, ErrorMessage = "O mínimo de diárias fica entre 1 e 7.")] int? MinNights,
+    [Range(typeof(decimal), "0.01", "99999", ParseLimitsInInvariantCulture = true, ErrorMessage = "A diária de 2+ noites precisa ser maior que zero.")] decimal? LongStayPricePerNight = null);
 
 // ---------- Pacotes ----------
 
@@ -60,3 +61,6 @@ public record BlockedRangeCreatedDto(int Created, int AlreadyBlocked);
 public record BufferSettingsDto(
     [Range(0, 3, ErrorMessage = "A folga vai de 0 a 3 noites.")] int BufferBeforeNights,
     [Range(0, 3, ErrorMessage = "A folga vai de 0 a 3 noites.")] int BufferAfterNights);
+
+// Horários (task 24). Só informativos: o site mostra "check-in a partir das 15h".
+public record ScheduleSettingsDto(TimeOnly CheckInTime, TimeOnly CheckOutTime, TimeOnly ExtendedCheckInTime, TimeOnly ExtendedCheckOutTime);

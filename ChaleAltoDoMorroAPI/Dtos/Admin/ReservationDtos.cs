@@ -67,6 +67,13 @@ public sealed class AdminGuestRequest : IValidatableObject
     [StringLength(254)]
     public string? Email { get; init; }
 
+    // Só no portal (task 25): vão para o cadastro do hóspede.
+    [StringLength(300, ErrorMessage = "Endereço com no máximo 300 caracteres.")]
+    public string? Address { get; init; }
+
+    [StringLength(150, ErrorMessage = "Rede social com no máximo 150 caracteres.")]
+    public string? SocialMedia { get; init; }
+
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         if (Name.Trim().Length < 2)
@@ -93,6 +100,13 @@ public class SaveReservationRequest : IValidatableObject
 
     [StringLength(2000)]
     public string? AdminNotes { get; init; }
+
+    // Folga (task 26). null = usar o global de settings/buffer. Numa reserva confirmada vira o snapshot.
+    [Range(0, 3, ErrorMessage = "A folga vai de 0 a 3 noites.")]
+    public int? BufferBeforeNights { get; init; }
+
+    [Range(0, 3, ErrorMessage = "A folga vai de 0 a 3 noites.")]
+    public int? BufferAfterNights { get; init; }
 
     public virtual IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
@@ -145,7 +159,7 @@ public record ReservationListItemDto(
     int? BufferAfterNights,
     ReservationSource Source);
 
-public record GuestReservationDetailDto(Guid Id, string Name, string? Cpf, string? Phone, string? Email);
+public record GuestReservationDetailDto(Guid Id, string Name, string? Cpf, string? Phone, string? Email, string? Address, string? SocialMedia);
 
 public record NightBreakdownDto(DateOnly Date, NightKind Kind, decimal Price);
 
@@ -183,7 +197,14 @@ public record ReservationAttributionDto(
     string? Fbclid,
     DateTimeOffset? FirstVisitAt);
 
-// Corpo opcional do POST /confirm (task 16). null (ou corpo vazio) = usar o global de settings/buffer.
+// Corpo opcional do POST /confirm (task 16). Folga null (ou corpo vazio) = a escolhida na criação ou o global de settings/buffer.
+// Guest1/Guest2 (task 25): completam o cadastro na confirmação. Campo null = não mexe.
 public record ConfirmReservationRequest(
     [Range(0, 3, ErrorMessage = "A folga vai de 0 a 3 noites.")] int? BufferBeforeNights,
-    [Range(0, 3, ErrorMessage = "A folga vai de 0 a 3 noites.")] int? BufferAfterNights);
+    [Range(0, 3, ErrorMessage = "A folga vai de 0 a 3 noites.")] int? BufferAfterNights,
+    GuestExtrasRequest? Guest1 = null,
+    GuestExtrasRequest? Guest2 = null);
+
+public record GuestExtrasRequest(
+    [StringLength(300, ErrorMessage = "Endereço com no máximo 300 caracteres.")] string? Address,
+    [StringLength(150, ErrorMessage = "Rede social com no máximo 150 caracteres.")] string? SocialMedia);

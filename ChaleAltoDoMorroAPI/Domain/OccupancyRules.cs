@@ -14,6 +14,7 @@ public static class OccupancyRules
     /// </summary>
     public static IReadOnlyList<DateOnly> PublishedNights(BufferedStay confirmed, int globalBefore, int globalAfter)
     {
+        confirmed = Effective(confirmed);
         var from = confirmed.CheckIn.AddDays(-Math.Max(confirmed.Before, globalAfter));
         var to = confirmed.CheckOut.AddDays(Math.Max(confirmed.After, globalBefore));
         return BookingRules.Nights(from, to);
@@ -23,17 +24,23 @@ public static class OccupancyRules
     /// Noites de folga da PRÓPRIA reserva (o snapshot, sem os globais): o que o calendário do portal pinta como "folga".
     /// Antes: [in − B, in). Depois: [out, out + A). Diferente de PublishedNights, que também soma a folga global.
     /// </summary>
-    public static IReadOnlyList<DateOnly> BufferNights(BufferedStay stay) =>
-    [
-        .. BookingRules.Nights(stay.CheckIn.AddDays(-stay.Before), stay.CheckIn),
-        .. BookingRules.Nights(stay.CheckOut, stay.CheckOut.AddDays(stay.After))
-    ];
+    public static IReadOnlyList<DateOnly> BufferNights(BufferedStay stay)
+    {
+        stay = Effective(stay);
+        return
+        [
+            .. BookingRules.Nights(stay.CheckIn.AddDays(-stay.Before), stay.CheckIn),
+            .. BookingRules.Nights(stay.CheckOut, stay.CheckOut.AddDays(stay.After))
+        ];
+    }
 
     /// <summary>
     /// Regra 3: S e R não convivem quando uma invade a área protegida da outra ([in − B, out + A)).
     /// As folgas podem se sobrepor entre si: as duas são "casa vazia".
     /// </summary>
-    public static bool Conflicts(BufferedStay s, BufferedStay r) =>
+    public static bool Conflicts(BufferedStay s, BufferedStay r) => Overlap(Effective(s), Effective(r));
+
+    private static bool Overlap(BufferedStay s, BufferedStay r) =>
         PackageRules.Overlaps(s.CheckIn.AddDays(-s.Before), s.CheckOut.AddDays(s.After), r.CheckIn, r.CheckOut)
         || PackageRules.Overlaps(r.CheckIn.AddDays(-r.Before), r.CheckOut.AddDays(r.After), s.CheckIn, s.CheckOut);
 
@@ -52,4 +59,13 @@ public static class OccupancyRules
         var other = confirmed.OrderBy(r => r.CheckIn).FirstOrDefault(r => Conflicts(stay, r));
         return other is null ? null : new ReservationConflict(other.CheckIn, other.CheckOut);
     }
+
+    /// <summary>
+    /// Regra 8: a diária estendida entra às 10h30 e sai às 16h, então ganha pelo menos 1 noite de folga de cada lado
+    /// (senão bateria com o check-out das 12h de quem sai e com o check-in das 15h de quem entra).
+    /// </summary>
+    public static BufferedStay Effective(BufferedStay stay) =>
+        BookingRules.IsExtendedStay(stay.CheckIn, stay.CheckOut)
+            ? stay with { Before = Math.Max(stay.Before, 1), After = Math.Max(stay.After, 1) }
+            : stay;
 }

@@ -9,6 +9,9 @@ public static class BookingRules
     /// <summary>A partir de quantas diárias a cesta de café colonial está inclusa (entregue na chegada).</summary>
     public const int ColonialBreakfastMinNights = 2;
 
+    /// <summary>A partir de quantas diárias a noite de semana tem desconto (WeekdayLongStayPrice).</summary>
+    public const int LongStayMinNights = 2;
+
     /// <summary>Devolve o primeiro problema da estadia, ou null se ela é válida.</summary>
     public static StayError? ValidateStay(DateOnly checkIn, DateOnly checkOut, BookingData data, DateOnly today)
     {
@@ -41,6 +44,21 @@ public static class BookingRules
             return isExactPackage ? null : new PartialPackage(package);
         }
 
+        if (checkIn.DayOfWeek == DayOfWeek.Sunday)
+            return new SundayCheckIn();
+
+        // Diária estendida: entra 10h30 e sai 16h, então a noite anterior e a do dia da saída precisam estar livres.
+        if (IsExtendedStay(checkIn, checkOut) && data.ExtendedPrice is not null)
+        {
+            foreach (var night in new[] { checkIn.AddDays(-1), checkOut })
+            {
+                if (data.BlockedNights.Contains(night))
+                    return new BlockedNight(night);
+            }
+
+            return null;
+        }
+
         var required = nights.Any(IsWeekendNight)
             ? data.WeekendMinNights ?? DefaultWeekendMinNights
             : 1;
@@ -58,15 +76,20 @@ public static class BookingRules
         return nights;
     }
 
+    /// <summary>Diária estendida: 1 noite com entrada na sexta ou no sábado.</summary>
+    public static bool IsExtendedStay(DateOnly checkIn, DateOnly checkOut) =>
+        checkOut == checkIn.AddDays(1) && checkIn.DayOfWeek is DayOfWeek.Friday or DayOfWeek.Saturday;
+
     public static bool IsWeekendNight(DateOnly night) =>
-        night.DayOfWeek is DayOfWeek.Friday or DayOfWeek.Saturday;
+        night.DayOfWeek is DayOfWeek.Friday or DayOfWeek.Saturday or DayOfWeek.Sunday;
 
     /// <summary>Pacote que contém a NOITE desta data (entrada &lt;= noite &lt; saída), se houver.</summary>
     public static PackageInfo? PackageOn(DateOnly night, IReadOnlyList<PackageInfo> packages) =>
         packages.FirstOrDefault(p => p.CheckIn <= night && night < p.CheckOut);
 
     /// <summary>Preço de UMA noite (pacote &gt; fim de semana &gt; semana), ou null se não há preço cadastrado.</summary>
-    public static NightPrice? PriceNight(DateOnly night, BookingData data)
+    /// <param name="longStay">A estadia tem 2+ diárias: a noite de semana usa o WeekdayLongStayPrice.</param>
+    public static NightPrice? PriceNight(DateOnly night, BookingData data, bool longStay = false)
     {
         var package = PackageOn(night, data.Packages);
         if (package is not null)
@@ -75,22 +98,35 @@ public static class BookingRules
             return new NightPrice(night, NightKind.Package, Money(package.Price / packageNights), package.Id);
         }
 
-        // Sem preço de fim de semana cadastrado, sexta e sábado caem no preço de semana.
+        // Sem preço de fim de semana cadastrado, sexta, sábado e domingo caem no preço de semana.
         if (IsWeekendNight(night) && data.WeekendPrice is { } weekendPrice)
             return new NightPrice(night, NightKind.Weekend, weekendPrice);
 
-        return data.WeekdayPrice is { } weekdayPrice
-            ? new NightPrice(night, NightKind.Weekday, weekdayPrice)
-            : null;
+        // Sem diária de semana não se orça, nem com o desconto cadastrado (ele mora na mesma regra).
+        if (data.WeekdayPrice is not { } weekdayPrice)
+            return null;
+
+        var price = longStay && data.WeekdayLongStayPrice is { } longStayPrice ? longStayPrice : weekdayPrice;
+        return new NightPrice(night, NightKind.Weekday, price);
     }
 
     /// <summary>Orçamento de uma estadia VÁLIDA (chame ValidateStay antes). Null se faltar preço no cadastro.</summary>
     public static StayQuote? Quote(DateOnly checkIn, DateOnly checkOut, BookingData data, KitInfo? kit = null)
     {
+        var stayNights = Nights(checkIn, checkOut);
+        var longStay = stayNights.Count >= LongStayMinNights;
+
+        // Estendida só fora de pacote: se a noite é de pacote, vale o preço do pacote.
+        var extendedPrice = IsExtendedStay(checkIn, checkOut) && PackageOn(checkIn, data.Packages) is null
+            ? data.ExtendedPrice
+            : null;
+
         var nights = new List<NightPrice>();
-        foreach (var night in Nights(checkIn, checkOut))
+        foreach (var night in stayNights)
         {
-            var price = PriceNight(night, data);
+            var price = extendedPrice is { } extended
+                ? new NightPrice(night, NightKind.Extended, extended)
+                : PriceNight(night, data, longStay);
             if (price is null)
                 return null; // cadastro incompleto: não inventa valor
 

@@ -38,7 +38,7 @@ public class OccupancyRulesTests
     // ---------- Estadia nova contra as noites publicadas ----------
 
     [Theory]
-    [InlineData(0, 0, 0, 0, "2026-10-11", "2026-10-12")] // entra no dia em que R sai
+    // "Entra no dia em que R sai" (11/10) virou domingo sem check-in no site (task 23): o encaixe está em Conflito_entre_duas_estadias.
     [InlineData(0, 0, 0, 0, "2026-10-07", "2026-10-09")] // sai no dia em que R entra
     [InlineData(0, 1, 0, 1, "2026-10-12", "2026-10-13")]
     [InlineData(0, 1, 0, 1, "2026-10-07", "2026-10-08")]
@@ -124,6 +124,43 @@ public class OccupancyRulesTests
 
         Assert.Equal(2, BookingRules.Nights(D("2026-10-09"), D("2026-10-11")).Count);
         Assert.Equal(1789m, quote!.Total);
+    }
+
+    // ---------- Diária estendida: as noites vizinhas ficam livres (regra 8, task 23) ----------
+
+    private static readonly BufferedStay Estendida = new(D("2026-10-10"), D("2026-10-11"), 0, 0);
+
+    [Fact]
+    public void Diaria_estendida_publica_as_noites_vizinhas()
+    {
+        Assert.Equal(["09", "10", "11"], Published(Estendida, 0, 0));
+    }
+
+    [Fact]
+    public void Diaria_estendida_mostra_as_noites_vizinhas_como_folga()
+    {
+        Assert.Equal(["09", "11"], OccupancyRules.BufferNights(Estendida).Select(n => n.ToString("dd")).ToArray());
+    }
+
+    [Theory]
+    [InlineData("2026-10-08", "2026-10-10", true)]  // qui → sáb sai no sábado: bate com a entrada das 10h30
+    [InlineData("2026-10-11", "2026-10-13", true)]  // dom → ter (admin) entra no domingo: bate com a saída das 16h
+    [InlineData("2026-10-08", "2026-10-09", false)] // qui → sex: a sexta fica livre
+    [InlineData("2026-10-12", "2026-10-14", false)] // seg → qua: o domingo fica livre
+    public void Diaria_estendida_conflita_com_quem_encosta(string sIn, string sOut, bool expected)
+    {
+        var s = new BufferedStay(D(sIn), D(sOut), 0, 0);
+
+        Assert.Equal(expected, OccupancyRules.Conflicts(s, Estendida));
+        Assert.Equal(expected, OccupancyRules.Conflicts(Estendida, s));
+    }
+
+    [Fact]
+    public void Folga_maior_que_1_na_estendida_e_mantida()
+    {
+        var estendida = Estendida with { Before = 2 };
+
+        Assert.Equal(["08", "09", "11"], OccupancyRules.BufferNights(estendida).Select(n => n.ToString("dd")).ToArray());
     }
 
     // ---------- Noites de folga da própria reserva (calendário do portal, task 18) ----------
