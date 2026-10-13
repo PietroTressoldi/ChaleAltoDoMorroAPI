@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">How a booking flows through the API</title>
+  <desc id="desc">Four steps. 1: the website reads prices and blocked nights from the public API. 2: the guest sends a pre-reservation; the server validates it, recalculates the price and rate-limits it. 3: the owner confirms it in the JWT-protected portal, which locks the nights on the calendar. 4: the owner tracks income and expenses in the cash book and dashboard.</desc>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#c9a84c"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="520" rx="24" fill="#0b0d0c"/>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <!-- 1 -->
+    <g transform="translate(48 40)">
+      <rect width="528" height="200" rx="18" fill="#131713" stroke="#2a4436" stroke-width="1.5"/>
+      <text x="504" y="40" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" letter-spacing="2" fill="#7c7268">WEBSITE</text>
+      <text x="32" y="64" font-family="Georgia, serif" font-size="44" fill="#c9a84c">01</text>
+      <text x="100" y="58" font-size="26" font-weight="600" fill="#faf8f4">Guest picks dates</text>
+      <text x="32" y="106" font-size="20" fill="#f0ebe2">Reads prices, packages and blocked nights</text>
+      <text x="32" y="134" font-size="20" fill="#f0ebe2">from the public API, no login needed.</text>
+      <text x="32" y="176" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#e8c97a">GET /api/pricing · /api/blocked-dates</text>
+    </g>
+    <!-- 2 -->
+    <g transform="translate(624 40)">
+      <rect width="528" height="200" rx="18" fill="#131713" stroke="#2a4436" stroke-width="1.5"/>
+      <text x="504" y="40" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" letter-spacing="2" fill="#7c7268">WEBSITE</text>
+      <text x="32" y="64" font-family="Georgia, serif" font-size="44" fill="#c9a84c">02</text>
+      <text x="100" y="58" font-size="26" font-weight="600" fill="#faf8f4">Pre-reservation</text>
+      <text x="32" y="106" font-size="20" fill="#f0ebe2">Validated input, price recalculated on the</text>
+      <text x="32" y="134" font-size="20" fill="#f0ebe2">server, rate-limited per client.</text>
+      <text x="32" y="176" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#e8c97a">POST /api/pre-reservations</text>
+    </g>
+    <!-- 3 -->
+    <g transform="translate(48 296)">
+      <rect width="528" height="200" rx="18" fill="#131713" stroke="#2a4436" stroke-width="1.5"/>
+      <text x="504" y="40" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" letter-spacing="2" fill="#7c7268">PORTAL</text>
+      <text x="32" y="64" font-family="Georgia, serif" font-size="44" fill="#c9a84c">03</text>
+      <text x="100" y="58" font-size="26" font-weight="600" fill="#faf8f4">Owner confirms</text>
+      <text x="32" y="106" font-size="20" fill="#f0ebe2">JWT-protected portal. Confirming a stay</text>
+      <text x="32" y="134" font-size="20" fill="#f0ebe2">locks its nights on the calendar.</text>
+      <text x="32" y="176" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#e8c97a">POST /api/admin/reservations/{id}/confirm</text>
+    </g>
+    <!-- 4 -->
+    <g transform="translate(624 296)">
+      <rect width="528" height="200" rx="18" fill="#131713" stroke="#2a4436" stroke-width="1.5"/>
+      <text x="504" y="40" text-anchor="end" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" letter-spacing="2" fill="#7c7268">PORTAL</text>
+      <text x="32" y="64" font-family="Georgia, serif" font-size="44" fill="#c9a84c">04</text>
+      <text x="100" y="58" font-size="26" font-weight="600" fill="#faf8f4">Cash book &amp; dashboard</text>
+      <text x="32" y="106" font-size="20" fill="#f0ebe2">Income, expenses and recurring costs;</text>
+      <text x="32" y="134" font-size="20" fill="#f0ebe2">the dashboard compares periods.</text>
+      <text x="32" y="176" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#e8c97a">GET /api/admin/dashboard</text>
+    </g>
+  </g>
+
+  <g fill="none" stroke="#c9a84c" stroke-width="2" marker-end="url(#arrow)">
+    <path d="M582 140 H616"/>
+    <path d="M888 246 V268 H312 V288"/>
+    <path d="M582 396 H616"/>
+  </g>
+</svg>
