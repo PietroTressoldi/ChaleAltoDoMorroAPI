@@ -25,9 +25,15 @@ e "hoje" como parâmetros e devolve o resultado. Assim dá para testar tudo com 
 5. **Pacote parcial**: se alguma noite pertence a um pacote e a estadia **não é exatamente** aquele pacote
    (mesmo check-in **e** mesmo check-out) → `PartialPackage` (informar qual).
 6. Se a estadia **é exatamente** um pacote → **válida** (o mínimo de fim de semana e o domingo não se aplicam).
+   🆕 (task 28) Antes disso: se o **check-in do pacote** cai depois do mês aberto → `MonthNotOpen`.
+6b. 🆕 (task 28) **Mês fechado**: se a última noite (`checkOut − 1`) cai depois do mês aberto (`OpenUntil`) →
+   `MonthNotOpen` (informar a noite). O check-out pode cair no dia 1º do mês fechado. Ver "Meses abertos".
 7. 🆕 **Check-in no domingo** → `SundayCheckIn`.
 8. 🆕 Se a estadia é uma **diária estendida** (sex → sáb ou sáb → dom) e existe a regra `extended`: a noite **anterior**
    e a noite do **dia da saída** precisam estar livres (senão `BlockedNight` com a primeira delas). Se estiverem → **válida**.
+   🆕 (task 27) A noite anterior só é checada se o global `BufferBeforeNights` é **0**, e a noite do dia da saída só se o
+   global `BufferAfterNights` é **0**. Com o global ≥ 1, as noites publicadas já trazem essa folga (regra 4 da "Folga
+   entre hóspedes"), e checar de novo contaria a folga duas vezes.
 9. **Mínimo de diárias**: se alguma noite é de fim de semana (sex, sáb ou dom), o mínimo é o `MinNights` da regra
    `weekend` (padrão **2** se não houver regra ou o campo for nulo). Senão, o mínimo é 1. Abaixo disso → `MinNights`.
 
@@ -56,6 +62,8 @@ sexta ou um check-in no domingo.
   E-mail opcional; se informado, formato válido.
 - Hóspede 2 (opcional): se tiver CPF, o CPF precisa ser válido **e** o nome é obrigatório.
 - Observações: até 1000 caracteres.
+- 🆕 (task 30) Rede social do hóspede 1: opcional, até 150 caracteres. Num hóspede que já existe (mesmo CPF), só
+  preenche se estiver vazia. O endereço continua **só** no portal.
 
 ### CPF — dígitos verificadores
 Com os 9 primeiros dígitos `d0..d8`:
@@ -98,6 +106,22 @@ O padrão é 0/0, que é exatamente o comportamento de hoje.
    normal das 12h, e a saída às 16h bate com o check-in normal das 15h. Toda diária estendida (do site ou do portal) usa
    `B = max(B, 1)` e `A = max(A, 1)` nas contas de ocupação. O site recusa a estendida com `BlockedNight` quando a noite
    anterior ou a do dia da saída está indisponível (regra 8 da validação).
+   🆕 **Correção (task 27, 14/10/2026):** no site e na pré-reserva, essa checagem só vale do lado em que o global é **0**.
+   As noites publicadas (regra 4) já incluem a folga global da estadia nova (`gA` antes de cada reserva, `gB` depois).
+   Com o global em 1, checar a noite vizinha de novo exigia **2** noites livres. Foi o bug do 19/12: Bianca 21 → 23,
+   global 0/1, noite 20 publicada só por causa do `gA`, e a estendida 19 → 20 era recusada sem conflito real.
+   A confirmação não muda: continua exata, com `Effective` + `Conflicts`.
+   Limite conhecido: com o global 0, se a reserva vizinha tem folga **própria**, a noite publicada é a folga dela e a
+   estendida continua recusada no site (conservador). O admin pode criar a reserva pelo portal.
+
+## Meses abertos (task 28)
+O site só aceita reservas até um **mês-limite**, aberto pelo portal ("reservas abertas até dezembro/2026").
+1. Configuração global `BookingOpenUntil` (`null` = sem limite). Guarda o **último dia** do mês. Qualquer data recebida
+   é normalizada para o fim do mês dela.
+2. Estadia comum: todas as noites cobradas precisam estar até o `OpenUntil` → senão `MonthNotOpen`. O check-out pode cair
+   no dia 1º do mês fechado (a noite anterior ainda é do mês aberto).
+3. Pacote: vale o **mês do check-in** do pacote. Ano Novo 31/12 → 03/01 sai com dezembro aberto (decidido em 14/10/2026).
+4. Vale **só para o site**. O admin cria reservas em qualquer mês.
 
 ---
 
@@ -256,6 +280,31 @@ Mesmo cenário de referência ("hoje" = 01/10/2026). Reserva confirmada **R**: 0
 | estendida nova 10/10 → 11/10, com a noite 09/10 bloqueada (reserva ou bloqueio manual) | BlockedNight (09/10) |
 | estendida nova 10/10 → 11/10, com a noite 08/10 ocupada (qui → sex) | ok |
 | confirmar a estendida com outra confirmada 08/10 → 10/10 (sai no sábado) | 409: a sexta da estendida está ocupada |
+
+🆕 Diária estendida com a folga global (task 27). R confirmada **12/10 → 14/10** (seg → qua), folga própria 0/0:
+
+| Globais (gB/gA) | Noites publicadas por R | Estadia nova | Esperado |
+|---|---|---|---|
+| 0/1 | **11**, 12, 13 | sáb 10/10 → dom 11/10 (estendida) | ok: a noite 11 é só a folga da própria estendida (caso 19/12) |
+| 0/0 | 12, 13 + bloqueio manual em 11 | sáb 10/10 → dom 11/10 (estendida) | BlockedNight (11/10): comportamento de antes |
+| 1/0 | R2 confirmada 07/10 → 09/10 (qua → sex) publica 07, 08, **09** | sex 09/10 → sáb 10/10 (estendida) | BlockedNight (09/10): é a própria noite da estadia |
+| 1/0 | R2 confirmada 06/10 → 08/10 (ter → qui) publica 06, 07, **08** | sex 09/10 → sáb 10/10 (estendida) | ok: a quinta 08 já é a folga publicada |
+| 0/0 | bloqueio manual em 08/10 | sex 09/10 → sáb 10/10 (estendida) | BlockedNight (08/10): comportamento de antes |
+
+## Meses abertos
+Mesmo cenário, com `OpenUntil = 31/12/2026` e os pacotes **"Ano Novo"** (31/12 → 03/01, 2.990) e **"Reis"**
+(08/01/2027 → 10/01/2027):
+
+| Estadia | Esperado |
+|---|---|
+| 30/12 → 01/01 | ok (última noite 31/12) |
+| 31/12 → 02/01 | MonthNotOpen (01/01) |
+| 05/01 → 07/01 | MonthNotOpen (05/01) |
+| pacote Ano Novo 31/12 → 03/01 | ok: o check-in é em dezembro |
+| pacote Reis 08/01 → 10/01 | MonthNotOpen (08/01) |
+| `OpenUntil = null`, 05/01 → 07/01 | ok |
+| admin cria 05/01 → 07/01 | ok (o admin não tem limite) |
+| `PUT` com 15/01/2027 | `OpenUntil` = 31/01/2027 |
 
 Confirmação (task 9) com o global 0/1: uma pendente P de 11/10 → 12/10, com R já confirmada (0/1) → `409` (P invade a
 folga de R). Se R tivesse sido confirmada com `bufferAfterNights: 0` → ok.

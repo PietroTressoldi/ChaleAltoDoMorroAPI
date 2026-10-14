@@ -31,12 +31,27 @@ Este documento lista as rotas que o **portal de gestão** (`D:\Desenvolvimento\C
 
 ### ✅ `POST /api/auth/login`
 ```json
-{ "email": "dono@exemplo.com", "password": "..." }
+{ "email": "dono@exemplo.com", "password": "...", "rememberMe": true }
 ```
 → `200 { "accessToken": "eyJ...", "expiresAt": "2026-10-01T15:32:00+00:00" }` · `401` com mensagem genérica.
 
-O token vale 60 minutos e não há refresh token. Quando o token vence, o portal volta para o login com o aviso
-"Sua sessão expirou".
+🆕 **Lembrar de mim (task 29).** `rememberMe` é opcional (padrão `false`). Além do corpo, o login grava o cookie
+`chale_refresh` (`HttpOnly; Secure; SameSite=Strict; Path=/api/auth`):
+- `rememberMe: true` → cookie com `Expires` de 30 dias; o refresh vale 30 dias a partir do login (prazo absoluto);
+- `rememberMe: false` → cookie de sessão (some ao fechar o navegador); o refresh vale no máximo 12h.
+
+O access token passa a valer **15 minutos** e fica **só na memória** do portal (nada de `localStorage`).
+
+### 🆕 `POST /api/auth/refresh` (task 29)
+Sem corpo. Exige `credentials: 'include'` (para o navegador mandar o cookie) e o header `X-Requested-With: chale-portal`.
+→ `200` com o mesmo formato do login e um cookie novo (rotação: o anterior deixa de valer) · `401` se o cookie faltar,
+vencer, for revogado ou for **reusado** (nesse caso a sessão inteira é encerrada).
+
+O portal chama ao abrir (para recuperar a sessão) e quando uma rota responde `401` (uma tentativa só; se falhar, volta para
+o login com o aviso "Sua sessão expirou").
+
+### 🆕 `POST /api/auth/logout` (task 29)
+Mesmos `credentials` e header do refresh. → `204`. Encerra a sessão do cookie e apaga o cookie.
 
 ### ✅ `GET /api/admin/me` → `{ "email": "dono@exemplo.com" }`
 
@@ -45,6 +60,7 @@ O token vale 60 minutos e não há refresh token. Quando o token vence, o portal
 { "currentPassword": "...", "newPassword": "..." }
 ```
 → `204` · `422` quando a senha atual está errada ou a nova é fraca (a mensagem diz qual regra falhou).
+🆕 (task 29) Trocar a senha encerra **todas** as sessões "lembradas" do usuário (os refresh tokens são revogados).
 
 ---
 
@@ -264,7 +280,7 @@ Mesmo corpo do `POST`, **sem** `status`. Substitui tudo: datas, hóspedes, kit, 
 Mesmo formato do item da lista, mais:
 - `cpf`;
 - `notes`;
-- 🆕 (task 25) `address` e `socialMedia` (só no portal, nunca em rota pública nem em log);
+- 🆕 (task 25) `address` e `socialMedia` (nunca em rota pública de leitura nem em log; desde a task 30 a `socialMedia` também pode vir da pré-reserva do site);
 - `reservations`: um array de `ReservationListItemDto` com todas as reservas, qualquer status, da mais recente para a mais antiga.
 
 ### `PATCH /api/admin/guests/{id}`
@@ -441,6 +457,13 @@ Um livro por mês. Ele registra **entradas** e **saídas**, e o resultado é o *
 - `GET /api/admin/settings/schedule` → `{ "checkInTime": "15:00:00", "checkOutTime": "12:00:00", "extendedCheckInTime": "10:30:00", "extendedCheckOutTime": "16:00:00" }`.
 - `PUT /api/admin/settings/schedule` com o mesmo corpo → `200`. Os quatro campos são obrigatórios.
 - Só informativo: aparece no site (`GET /api/schedule`) e não muda nenhuma regra de reserva.
+
+### 🆕 Meses abertos para reserva (task 28)
+- `GET /api/admin/settings/booking-window` → `{ "openUntil": "2026-12-31" }` (`null` = sem limite).
+- `PUT /api/admin/settings/booking-window` com o mesmo corpo → `200`. Qualquer dia do mês serve: a API grava o último
+  dia daquele mês (`"2027-01-15"` → `"2027-01-31"`).
+- Vale só para o site (`GET /api/booking-settings`). O portal cria reservas em qualquer mês.
+- No portal: campo de mês ("Reservas abertas até") com a opção "sem limite".
 
 ---
 
