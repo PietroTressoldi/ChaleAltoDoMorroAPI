@@ -293,7 +293,8 @@ Mesmo cenário de referência ("hoje" = 01/10/2026). Reserva confirmada **R**: 0
 
 ## Meses abertos
 Mesmo cenário, com `OpenUntil = 31/12/2026` e os pacotes **"Ano Novo"** (31/12 → 03/01, 2.990) e **"Reis"**
-(08/01/2027 → 10/01/2027):
+(08/01/2027 → 10/01/2027). As estadias **comuns** da tabela são testadas **sem** os pacotes (com o Ano Novo, 30/12 → 01/01
+tocaria a noite 31/12 dele e daria `PartialPackage`, que vem antes do `MonthNotOpen`):
 
 | Estadia | Esperado |
 |---|---|

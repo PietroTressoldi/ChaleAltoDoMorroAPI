@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ChaleAltoDoMorroAPI.Services;
 
-public class SrvReservation(AppDbContext db, SrvAvailability srvAvailability, IClock brazilClock, TimeProvider timeProvider, ILogger<SrvReservation> log)
+public class SrvReservation(AppDbContext db, SrvAvailability srvAvailability, SrvSettings srvSettings, IClock brazilClock, TimeProvider timeProvider, ILogger<SrvReservation> log)
 {
 
     public async Task<PreReservationResponse> CreatePreReservation(PostPreReservationRequest request, CancellationToken ct = default)
@@ -155,8 +155,12 @@ public class SrvReservation(AppDbContext db, SrvAvailability srvAvailability, IC
         var weekendRule = pricingRules.FirstOrDefault(p => p.Kind == PricingKind.Weekend);
         var extendedRule = pricingRules.FirstOrDefault(p => p.Kind == PricingKind.Extended);
 
+        var settings = await srvSettings.GetBookingSettings(ct);
+
         return new BookingData(weekdayRule?.PricePerNight, weekendRule?.PricePerNight, weekendRule?.MinNights, blockedNights, packageInfo,
-            weekdayRule?.LongStayPricePerNight, extendedRule?.PricePerNight);
+            weekdayRule?.LongStayPricePerNight, extendedRule?.PricePerNight,
+            BufferBefore: settings.BufferBeforeNights, BufferAfter: settings.BufferAfterNights,
+            OpenUntil: settings.BookingOpenUntil);
     }
 
     private static (PreReservationResponse? ErrorResponse, PackageInfo? package) ValidateRequestPackage(PostPreReservationRequest request, BookingData bookingData)

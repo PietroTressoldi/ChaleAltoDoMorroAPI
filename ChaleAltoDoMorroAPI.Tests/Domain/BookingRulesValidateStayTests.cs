@@ -48,6 +48,33 @@ public class BookingRulesValidateStayTests
         Assert.Equal(D(blocked), error.Night);
     }
 
+
+    // ---------- Diária estendida com a folga global (task 27) ----------
+    // Tabela "Diária estendida com a folga global" de REGRAS_RESERVA.md. "blocked" = noites publicadas.
+    [Theory]
+    [InlineData("2026-10-10", "2026-10-11", 0, 1, "2026-10-11,2026-10-12,2026-10-13", null)]         // caso 19/12
+    [InlineData("2026-10-10", "2026-10-11", 0, 0, "2026-10-11,2026-10-12,2026-10-13", "2026-10-11")] // global 0: como antes
+    [InlineData("2026-10-09", "2026-10-10", 1, 0, "2026-10-07,2026-10-08,2026-10-09", "2026-10-09")] // a própria noite
+    [InlineData("2026-10-09", "2026-10-10", 1, 0, "2026-10-06,2026-10-07,2026-10-08", null)]         // quinta = folga publicada
+    [InlineData("2026-10-09", "2026-10-10", 0, 0, "2026-10-08", "2026-10-08")]                       // global 0: como antes
+    public void Estendida_nao_conta_a_folga_global_duas_vezes(
+        string checkIn, string checkOut, int bufferBefore, int bufferAfter, string blocked, string? expectedBlocked)
+    {
+        var data = ScenarioData() with
+        {
+            BlockedNights = blocked.Split(',').Select(D).ToHashSet(),
+            BufferBefore = bufferBefore,
+            BufferAfter = bufferAfter,
+        };
+
+        var error = Validate(checkIn, checkOut, data);
+
+        if (expectedBlocked is null)
+            Assert.Null(error);
+        else
+            Assert.Equal(D(expectedBlocked), Assert.IsType<BlockedNight>(error).Night);
+    }
+
     [Theory]
     [InlineData("2026-10-11", "2026-10-12")] // dom → seg
     [InlineData("2026-10-11", "2026-10-13")] // dom → ter
@@ -183,4 +210,51 @@ public class BookingRulesValidateStayTests
     {
         Assert.IsType<PastCheckIn>(Validate("2026-10-30", "2026-11-02", today: "2026-10-31"));
     }
+
+    // ---------- Meses abertos (task 28) ----------
+    // Tabela "Meses abertos" de REGRAS_RESERVA.md, com OpenUntil = 31/12/2026.
+    private static readonly PackageInfo AnoNovo = new(Guid.Empty, "Ano Novo", D("2026-12-31"), D("2027-01-03"), 2990m);
+    private static readonly PackageInfo Reis = new(Guid.Empty, "Reis", D("2027-01-08"), D("2027-01-10"), 1800m);
+
+    private static BookingData OpenUntilDecember(params PackageInfo[] packages) =>
+        ScenarioData() with { OpenUntil = D("2026-12-31"), Packages = packages };
+
+    [Theory]
+    [InlineData("2026-12-30", "2027-01-01", null)]         // última noite 31/12: o check-out pode cair em janeiro
+    [InlineData("2026-12-31", "2027-01-02", "2027-01-01")]
+    [InlineData("2027-01-05", "2027-01-07", "2027-01-05")]
+    public void Estadia_comum_so_ate_o_mes_aberto(string checkIn, string checkOut, string? closedNight)
+    {
+        var error = Validate(checkIn, checkOut, OpenUntilDecember());
+
+        if (closedNight is null)
+            Assert.Null(error);
+        else
+            Assert.Equal(D(closedNight), Assert.IsType<MonthNotOpen>(error).Night);
+    }
+
+    [Fact]
+    public void Pacote_vale_pelo_mes_do_check_in()
+    {
+        var data = OpenUntilDecember(AnoNovo, Reis);
+
+        Assert.Null(Validate("2026-12-31", "2027-01-03", data));
+        Assert.Equal(D("2027-01-08"), Assert.IsType<MonthNotOpen>(Validate("2027-01-08", "2027-01-10", data)).Night);
+    }
+
+    [Fact]
+    public void Sem_mes_aberto_nao_tem_limite()
+    {
+        Assert.Null(Validate("2027-01-05", "2027-01-07"));
+    }
+
+    [Theory]
+    [InlineData("2027-01-15", "2027-01-31")]
+    [InlineData("2026-12-01", "2026-12-31")]
+    [InlineData("2028-02-10", "2028-02-29")] // ano bissexto
+    public void Mes_aberto_vai_ate_o_ultimo_dia(string date, string expected)
+    {
+        Assert.Equal(D(expected), BookingRules.EndOfMonth(D(date)));
+    }
+
 }

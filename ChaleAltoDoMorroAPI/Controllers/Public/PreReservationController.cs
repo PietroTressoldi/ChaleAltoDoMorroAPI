@@ -1,3 +1,4 @@
+using System.Globalization;
 using ChaleAltoDoMorroAPI.Domain;
 using ChaleAltoDoMorroAPI.Dtos;
 using ChaleAltoDoMorroAPI.Global;
@@ -13,6 +14,9 @@ namespace ChaleAltoDoMorroAPI.Controllers.Public;
 [ApiController]
 public class PreReservationController(SrvReservation srvReservation) : ControllerBase
 {
+
+    private static readonly CultureInfo PtBr = CultureInfo.GetCultureInfo("pt-BR");
+
     [HttpPost]
     [EnableRateLimiting(RateLimitPolicies.PreReservation)]
     [ProducesResponseType(StatusCodes.Status201Created)]
@@ -50,6 +54,11 @@ public class PreReservationController(SrvReservation srvReservation) : Controlle
             title: "Mínimo de diárias",
             detail: $"Estadias com noite de sexta, sábado ou domingo exigem no mínimo {minNights.Required} diárias.",
             statusCode: StatusCodes.Status422UnprocessableEntity),
+
+        StayRejected { error: MonthNotOpen closed } => Problem(
+          title: "Reservas ainda não abertas",
+          detail: $"As reservas para {closed.Night.ToString("MMMM/yyyy", PtBr)} ainda não foram abertas.",
+          statusCode: StatusCodes.Status422UnprocessableEntity),
 
         StayRejected { error: SundayCheckIn } => Problem(
             title: "Check-in no domingo",

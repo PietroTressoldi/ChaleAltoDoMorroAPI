@@ -22,3 +22,6 @@ public record MinNightsNotMet(int Required, int Actual) : StayError;
 
 // Confirmação com folga (task 16): a estadia invade a área protegida de outra reserva confirmada (ou vice-versa).
 public record ReservationConflict(DateOnly CheckIn, DateOnly CheckOut) : StayError;
+
+// Task 28: o site só aceita reservas até o mês aberto no portal. Night = primeira noite fora dele.
+public record MonthNotOpen(DateOnly Night) : StayError;

@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using ChaleAltoDoMorroAPI.Dtos.Admin;
 using ChaleAltoDoMorroAPI.Global;
+using ChaleAltoDoMorroAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Identity;
@@ -14,7 +15,7 @@ namespace ChaleAltoDoMorroAPI.Controllers.Admin;
 [Authorize]
 [EnableCors(CorsPolicies.Portal)]
 [Route("api/admin/me")]
-public class MeController(UserManager<IdentityUser> userManager, ILogger<MeController> log) : ControllerBase
+public class MeController(UserManager<IdentityUser> userManager, ILogger<MeController> log, SrvRefreshToken srvRefreshToken) : ControllerBase
 {
     [HttpGet]
     public ActionResult<object> GetMe()
@@ -27,7 +28,7 @@ public class MeController(UserManager<IdentityUser> userManager, ILogger<MeContr
     [EnableRateLimiting(RateLimitPolicies.Password)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public async Task<ActionResult> ChangePassword([FromBody] ChangePasswordDto request)
+    public async Task<ActionResult> ChangePassword([FromBody] ChangePasswordDto request, CancellationToken ct)
     {
         // "sub" = Id do usuário (SrvToken). O Id nunca muda; o e-mail pode mudar um dia.
         var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
@@ -45,6 +46,8 @@ public class MeController(UserManager<IdentityUser> userManager, ILogger<MeContr
 
         if (result.Succeeded)
         {
+            // Senha nova derruba todas as sessões lembradas (se alguém roubou um cookie, perde o acesso aqui).
+            await srvRefreshToken.RevokeAll(user.Id, ct);
             log.LogInformation("Senha trocada por {UserId}.", user.Id);
             return NoContent();
         }

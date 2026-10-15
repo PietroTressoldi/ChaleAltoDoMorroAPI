@@ -57,6 +57,10 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("id");
 
+                    b.Property<DateOnly?>("BookingOpenUntil")
+                        .HasColumnType("date")
+                        .HasColumnName("booking_open_until");
+
                     b.Property<int>("BufferAfterNights")
                         .HasColumnType("integer")
                         .HasColumnName("buffer_after_nights");
@@ -525,6 +529,61 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
 
                             t.HasCheckConstraint("ck_recurring_expenses_end_after_start", "end_month IS NULL OR end_month >= start_month");
                         });
+                });
+
+            modelBuilder.Entity("ChaleAltoDoMorroAPI.Domain.RefreshToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<Guid>("FamilyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("family_id");
+
+                    b.Property<bool>("Persistent")
+                        .HasColumnType("boolean")
+                        .HasColumnName("persistent");
+
+                    b.Property<Guid?>("ReplacedById")
+                        .HasColumnType("uuid")
+                        .HasColumnName("replaced_by_id");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("token_hash");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_refresh_tokens");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("ix_refresh_tokens_token_hash");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_refresh_tokens_user_id");
+
+                    b.ToTable("refresh_tokens", (string)null);
                 });
 
             modelBuilder.Entity("ChaleAltoDoMorroAPI.Domain.Reservation", b =>
@@ -1098,6 +1157,16 @@ namespace ChaleAltoDoMorroAPI.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_recurring_expenses_cash_categories_category_id");
+                });
+
+            modelBuilder.Entity("ChaleAltoDoMorroAPI.Domain.RefreshToken", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_refresh_tokens_asp_net_users_user_id");
                 });
 
             modelBuilder.Entity("ChaleAltoDoMorroAPI.Domain.Reservation", b =>

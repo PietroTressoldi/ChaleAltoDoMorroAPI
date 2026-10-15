@@ -2,6 +2,6 @@
 
 namespace ChaleAltoDoMorroAPI.Dtos;
 
-public record LoginRequest([Required][EmailAddress] string Email, [Required] string Password);
+public record LoginRequest([Required][EmailAddress] string Email, [Required] string Password, bool RememberMe = false);
 
 public record LoginResponse(string AccessToken, DateTimeOffset ExpiresAt);

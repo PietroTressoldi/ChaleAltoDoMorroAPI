@@ -54,9 +54,9 @@ Ordem: **23 → 24 → 25 → 26**. A 23 é a maior e muda o preço que o site c
 ### Patch 2 — reservas e login (pedido em 14/10/2026)
 Branch **`feature/patch-2`**. Ordem: **27 → 28 → 29 → 30 → 31**. A 27 e a 28 mudam o que o site aceita: publicar a API e a
 landing **juntas**. A 29 muda o login: publicar a API e o portal **juntos**.
-- [ ] 27 — Diária estendida: folga contada duas vezes (bug do 19/12)
-- [ ] 28 — Meses abertos para reserva
-- [ ] 29 — Lembrar de mim (refresh token em cookie)
+- [x] 27 — Diária estendida: folga contada duas vezes (bug do 19/12)
+- [x] 28 — Meses abertos para reserva
+- [x] 29 — Lembrar de mim (refresh token em cookie)
 - [ ] 30 — Rede social na pré-reserva
 - [ ] 31 — Texto do sinal na confirmação (só landing)
 
@@ -967,10 +967,10 @@ domingo 20 esteja livre (Bianca 21/12 → 23/12, sem folga antes).
 duas vezes. O teste com o caso real (19/12) é a melhor documentação disso.
 
 **Critérios de aceite**
-- [ ] `gA = 1`, reserva entrando no domingo + 1 → sáb → dom **ok** (caso 19/12).
-- [ ] `gA = 0`, noite do check-out bloqueada → `BlockedNight` (comportamento de hoje).
-- [ ] `gB = 1`, reserva saindo na sexta → sex → sáb **ok**; `gB = 0`, véspera bloqueada → `BlockedNight`.
-- [ ] Todos os testes antigos da estendida continuam passando.
+- [x] `gA = 1`, reserva entrando no domingo + 1 → sáb → dom **ok** (caso 19/12).
+- [x] `gA = 0`, noite do check-out bloqueada → `BlockedNight` (comportamento de hoje).
+- [x] `gB = 1`, reserva saindo na sexta → sex → sáb **ok**; `gB = 0`, véspera bloqueada → `BlockedNight`.
+- [x] Todos os testes antigos da estendida continuam passando.
 
 **Armadilhas**
 - O site tem a mesma regra (`validateStay` em `landing/src/lib/booking.ts`) e precisa dos globais: eles saem na rota
@@ -1008,13 +1008,13 @@ o dono muda o limite no portal.
 no formato que o cliente manda.
 
 **Critérios de aceite** (cenário com `OpenUntil = 2026-12-31`)
-- [ ] 30/12 → 01/01 → ok.
-- [ ] 31/12 → 02/01 → `MonthNotOpen` (noite 01/01).
-- [ ] Pacote Ano Novo (31/12 → 03/01) → ok: o check-in é em dezembro.
-- [ ] Pacote com check-in em janeiro → `MonthNotOpen`.
-- [ ] `OpenUntil = null` → sem limite.
-- [ ] Reserva criada pelo portal em janeiro → ok.
-- [ ] `PUT` com `2027-01-15` → o `GET` devolve `2027-01-31`.
+- [x] 30/12 → 01/01 → ok.
+- [x] 31/12 → 02/01 → `MonthNotOpen` (noite 01/01).
+- [x] Pacote Ano Novo (31/12 → 03/01) → ok: o check-in é em dezembro.
+- [x] Pacote com check-in em janeiro → `MonthNotOpen`.
+- [x] `OpenUntil = null` → sem limite.
+- [x] Reserva criada pelo portal em janeiro → ok.
+- [x] `PUT` com `2027-01-15` → o `GET` devolve `2027-01-31`.
 
 **Armadilhas**
 - Depois da migration, a produção fica com `null` (sem limite). O dono configura "dezembro/2026" no portal **logo depois
@@ -1058,13 +1058,13 @@ de 30 dias no `localStorage` seria pior. O padrão seguro é:
 só o hash; `AllowCredentials` no CORS (exige origens explícitas, nunca `*`).
 
 **Critérios de aceite**
-- [ ] Login com `rememberMe: true` → `Set-Cookie` com `HttpOnly; Secure; SameSite=Strict; Path=/api/auth` e `Expires`.
-- [ ] Login com `rememberMe: false` → cookie sem `Expires`.
-- [ ] Refresh → token novo, e o anterior não funciona mais.
-- [ ] Reusar o token anterior → 401, e o token novo da família também passa a dar 401.
-- [ ] Logout → refresh dá 401.
-- [ ] Trocar senha → refresh dá 401.
-- [ ] Nenhum token aparece em log nem no banco em texto puro.
+- [x] Login com `rememberMe: true` → `Set-Cookie` com `HttpOnly; Secure; SameSite=Strict; Path=/api/auth` e `Expires`.
+- [x] Login com `rememberMe: false` → cookie sem `Expires`.
+- [x] Refresh → token novo, e o anterior não funciona mais.
+- [x] Reusar o token anterior → 401, e o token novo da família também passa a dar 401.
+- [x] Logout → refresh dá 401.
+- [x] Trocar senha → refresh dá 401.
+- [x] Nenhum token aparece em log nem no banco em texto puro.
 
 **Armadilhas**
 - `gestao.chalealtodomorro.com.br` e `api.chalealtodomorro.com.br` são o mesmo **site**, por isso o `SameSite=Strict`
