@@ -90,18 +90,23 @@ docs/               CONTRATO_SITE.md, CONTRATO_PORTAL.md, REGRAS_RESERVA.md, REG
   Fim de semana (noites de **sexta, sábado e domingo**) R$ 894,50 cada (R$ 1.789 pelas 2), mínimo de 2 diárias.
   **Sem check-in no domingo** (só o site; o admin pode). Valores, mínimo e horários vêm do banco (o portal edita).
 - **Diária estendida** (task 23): 1 noite com entrada na sexta ou no sábado, 10h30 → 16h, R$ 1.190 fechado, sem cesta.
-  Exige as noites vizinhas livres (folga mínima 1/1 no `OccupancyRules`).
+  Exige as noites vizinhas livres (folga mínima 1/1 no `OccupancyRules`). No site, a vizinha só é checada do lado em que a
+  folga global é 0, porque as noites publicadas já trazem a folga (task 27, bug do 19/12).
 - **Pacote especial** (ex.: feriado emendado): vendido **fechado**, preço total. Se a estadia toca uma noite do
   pacote, tem que ser exatamente o pacote.
 - **Cesta de café colonial** inclusa na chegada a partir de 2 diárias.
 - Kits românticos (Toque de Romance R$ 179, Eu Te Amo R$ 279, Noite Especial R$ 390) são adicionais opcionais.
 - Pré-reserva: hóspede 1 (nome, CPF, telefone obrigatórios; e-mail opcional) + hóspede 2 opcional.
-  Endereço e rede social do hóspede são **só do portal** (task 25), nunca na rota pública.
+  Endereço do hóspede é **só do portal** (task 25). A rede social é opcional também na pré-reserva (task 30). Nenhum dos
+  dois sai em rota pública de leitura.
   Nasce **pendente**. A confirmação é manual, no portal; o WhatsApp é o canal principal com o cliente.
 - Noites ocupadas por reserva = `[checkIn, checkOut)`: o dia do check-out fica livre para outro check-in.
   **Folga entre hóspedes (task 16):** "check-in bloqueia a véspera" e "check-out bloqueia a data",
   com valor global e snapshot por reserva na confirmação. Muda só a ocupação no `SrvAvailability`, não as noites cobradas (detalhes em
   `docs/REGRAS_RESERVA.md`, seção "Folga entre hóspedes").
+- **Meses abertos** (task 28): o site só aceita reservas até o mês aberto no portal (`openUntil`; `null` = sem limite).
+  Pacote vale pelo mês do check-in. O admin não tem limite.
+- **Lembrar de mim** (task 29): access token de 15 min só na memória + refresh token em cookie `HttpOnly`, com rotação.
 - **Livro Caixa** (tasks 14 e 15): um livro por mês com entradas e saídas. O resultado é o **caixa líquido** do mês
   (entradas − saídas), **sem saldo inicial nem acumulado**. Tem despesas fixas e fecha e reabre o mês. Os recebimentos
   das reservas são lançados **à mão** (o pagamento é 50% no sinal e 50% no check-in, e as duas partes podem cair em meses

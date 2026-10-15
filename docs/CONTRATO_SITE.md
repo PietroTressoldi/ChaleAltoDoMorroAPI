@@ -57,6 +57,19 @@ na sexta ou no sábado só quando existir o item `extended` e as noites vizinhas
 ```
 `TimeOnly` no formato padrão do `System.Text.Json` (`"HH:mm:ss"`). O site mostra "a partir das 15h" etc. É objeto, não array.
 
+### 🆕 `GET /api/booking-settings` — mês aberto e folga global (tasks 27 e 28)
+```json
+{ "openUntil": "2026-12-31", "bufferBeforeNights": 0, "bufferAfterNights": 1 }
+```
+
+| Campo | Tipo | Observação |
+|---|---|---|
+| `openUntil` | `"AAAA-MM-DD"` ou `null` | Último dia do mês aberto para reservas. `null` = sem limite. O site desabilita as noites depois dele (o pacote vale pelo mês do check-in) |
+| `bufferBeforeNights` | número (0–3) | Global "check-in bloqueia a véspera". Na estendida, a véspera só é checada se for `0` |
+| `bufferAfterNights` | número (0–3) | Global "check-out bloqueia a data". Na estendida, a noite do dia da saída só é checada se for `0` |
+
+É objeto, não array. Regras em `REGRAS_RESERVA.md` ("Meses abertos" e regra 8 da "Folga entre hóspedes").
+
 ### `GET /api/blocked-dates` — noites indisponíveis
 Inclui bloqueios manuais **e** as noites das pré-reservas **confirmadas**.
 
@@ -190,7 +203,7 @@ Corpo enviado pelo site (exatamente assim):
   "packageId": null,
   "extraIds": ["8a1b..."],
   "estimatedTotal": 1968,
-  "guest": { "name": "Ana Souza", "cpf": "52998224725", "email": null, "phone": "51989098631", "notes": "" },
+  "guest": { "name": "Ana Souza", "cpf": "52998224725", "email": null, "phone": "51989098631", "socialMedia": "@anasouza", "notes": "" },
   "secondGuest": { "name": "Bruno Lima", "cpf": null },
   "attribution": {
     "source": "meta_ads",
@@ -213,6 +226,7 @@ Corpo enviado pelo site (exatamente assim):
 | `guest.email` | Opcional (`null`). Se vier, precisa ser e-mail válido |
 | `guest.phone` | Obrigatório, **só dígitos**, 10 ou 11 dígitos (DDD + número, sem +55) |
 | `guest.notes` | Opcional, até 1000 caracteres (pode vir `""`) |
+| 🆕 `guest.socialMedia` | Opcional (`null` ou ausente), até 150 caracteres (task 30). Ex.: `"@anasouza"`. Vazio vira `null`. Num hóspede que já existe, só preenche se estiver vazio |
 | `secondGuest` | Opcional (`null`). Se vier: `name` obrigatório; `cpf` opcional, mas válido se vier |
 | `attribution` | Opcional (ausente ou `null` = origem desconhecida). De onde o visitante veio, para medir os anúncios. **Nunca causa erro**: valor ruim é limpo, não recusado (`AttributionRules`) |
 | `attribution.source` | `"meta_ads"` \| `"instagram"` \| `"google"` \| `"direct"` \| `"other"`. Qualquer outro valor é gravado como `"other"` |
@@ -224,6 +238,8 @@ Respostas sugeridas:
 - `201 Created` com `{ "id": "...", "total": 1968, "status": "pending" }` e header `Location`.
 - `400 Bad Request` (ProblemDetails de validação) para campos inválidos.
 - `409 Conflict` quando as datas não estão mais disponíveis (bloqueio, pacote parcial...).
+- 🆕 `422` com "As reservas para dezembro/2026 ainda não foram abertas." quando alguma noite cai depois do `openUntil`
+  (task 28). Erros de regra da estadia (mínimo de diárias, check-in no domingo, data passada) também são `422`.
 
 ---
 

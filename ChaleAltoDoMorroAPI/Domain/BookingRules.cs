@@ -41,20 +41,29 @@ public static class BookingRules
                 continue;
 
             var isExactPackage = package.CheckIn == checkIn && package.CheckOut == checkOut;
-            return isExactPackage ? null : new PartialPackage(package);
+            if (!isExactPackage)
+                return new PartialPackage(package);
+
+            // Pacote vale pelo mês do CHECK-IN (o Ano Novo entra em dezembro e sai em janeiro).
+            return package.CheckIn > data.OpenUntil ? new MonthNotOpen(package.CheckIn) : null;
         }
+
+        var closedNight = nights.FirstOrDefault(night => night > data.OpenUntil);
+        if (closedNight != default)
+            return new MonthNotOpen(closedNight);
 
         if (checkIn.DayOfWeek == DayOfWeek.Sunday)
             return new SundayCheckIn();
 
-        // Diária estendida: entra 10h30 e sai 16h, então a noite anterior e a do dia da saída precisam estar livres.
+        // Diária estendida: entra 10h30 e sai 16h, então a véspera e a noite do check-out precisam estar livres.
+        // Só confere o lado com folga global 0: com 1+, essa noite já vem nas bloqueadas (task 27, bug do 19/12).
         if (IsExtendedStay(checkIn, checkOut) && data.ExtendedPrice is not null)
         {
-            foreach (var night in new[] { checkIn.AddDays(-1), checkOut })
-            {
-                if (data.BlockedNights.Contains(night))
-                    return new BlockedNight(night);
-            }
+            if (data.BufferBefore == 0 && data.BlockedNights.Contains(checkIn.AddDays(-1)))
+                return new BlockedNight(checkIn.AddDays(-1));
+
+            if (data.BufferAfter == 0 && data.BlockedNights.Contains(checkOut))
+                return new BlockedNight(checkOut);
 
             return null;
         }
@@ -82,6 +91,12 @@ public static class BookingRules
 
     public static bool IsWeekendNight(DateOnly night) =>
         night.DayOfWeek is DayOfWeek.Friday or DayOfWeek.Saturday or DayOfWeek.Sunday;
+
+
+    /// <summary>Último dia do mês da data. O mês aberto é sempre guardado assim (2027-01-15 → 2027-01-31).</summary>
+    public static DateOnly EndOfMonth(DateOnly date) =>
+        new(date.Year, date.Month, DateTime.DaysInMonth(date.Year, date.Month));
+
 
     /// <summary>Pacote que contém a NOITE desta data (entrada &lt;= noite &lt; saída), se houver.</summary>
     public static PackageInfo? PackageOn(DateOnly night, IReadOnlyList<PackageInfo> packages) =>

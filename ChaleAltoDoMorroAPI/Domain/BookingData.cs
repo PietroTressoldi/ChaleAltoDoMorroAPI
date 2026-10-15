@@ -9,7 +9,10 @@ public record BookingData(
     IReadOnlySet<DateOnly> BlockedNights,
     IReadOnlyList<PackageInfo> Packages,
     decimal? WeekdayLongStayPrice = null, // diária de semana em estadia de 2+ diárias; null = sem desconto
-    decimal? ExtendedPrice = null);       // preço fechado da diária estendida; null = não existe
+    decimal? ExtendedPrice = null, // preço fechado da diária estendida; null = não existe
+    int BufferBefore = 0,  // folga global "check-in bloqueia a véspera"
+    int BufferAfter = 0, // folga global "check-out bloqueia a data"
+    DateOnly? OpenUntil = null);  // último dia do mês aberto no site; null = sem limite (e no admin)
 
 public record PackageInfo(Guid Id, string Name, DateOnly CheckIn, DateOnly CheckOut, decimal Price);
 

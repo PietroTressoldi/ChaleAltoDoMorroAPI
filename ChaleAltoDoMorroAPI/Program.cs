@@ -169,7 +169,8 @@ builder.Services.AddCors(options =>
     options.AddPolicy(CorsPolicies.Portal, policy =>
         policy.WithOrigins(portalOrigins)
             .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE")
-            .WithHeaders("Content-Type", "Authorization")
+            .WithHeaders("Content-Type", "Authorization", "X-Requested-With")
+            .AllowCredentials()
             .SetPreflightMaxAge(TimeSpan.FromMinutes(10)));
 });
 
@@ -190,6 +191,7 @@ builder.Services.AddScoped<SrvCalendar>();
 builder.Services.AddScoped<SrvDashboard>();
 builder.Services.AddScoped<SrvGallery>();
 builder.Services.AddScoped<SrvVideo>();
+builder.Services.AddScoped<SrvRefreshToken>();
 
 // Atrás do Caddy: o IP do visitante e o "https" chegam nos headers X-Forwarded-* (ver ForwardedHeadersSetup).
 builder.Services.Configure<ForwardedHeadersOptions>(ForwardedHeadersSetup.Configure);

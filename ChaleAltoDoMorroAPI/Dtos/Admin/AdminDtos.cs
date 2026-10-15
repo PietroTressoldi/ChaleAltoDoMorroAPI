@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace ChaleAltoDoMorroAPI.Dtos.Admin;
 
@@ -64,3 +65,13 @@ public record BufferSettingsDto(
 
 // Horários (task 24). Só informativos: o site mostra "check-in a partir das 15h".
 public record ScheduleSettingsDto(TimeOnly CheckInTime, TimeOnly CheckOutTime, TimeOnly ExtendedCheckInTime, TimeOnly ExtendedCheckOutTime);
+
+// Meses abertos (task 28). O openUntil sai mesmo quando é null: o contrato manda "openUntil": null
+// e o JSON global omite null (WhenWritingNull).
+public record BookingWindowDto([property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] DateOnly? OpenUntil);
+
+// Público (GET /api/booking-settings): o que o site precisa para validar o calendário igual à API.
+public record PublicBookingSettingsDto(
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] DateOnly? OpenUntil,
+    int BufferBeforeNights,
+    int BufferAfterNights);

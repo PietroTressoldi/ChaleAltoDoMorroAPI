@@ -22,4 +22,12 @@ public class AdminSettingsController(SrvSettings srvSettings) : AdminControllerB
     [HttpPut("schedule")]
     public async Task<ActionResult<ScheduleSettingsDto>> PutSchedule(ScheduleSettingsDto request, CancellationToken ct) =>
         Ok(await srvSettings.PutSchedule(request, ct));
+
+    [HttpGet("booking-window")]
+    public async Task<ActionResult<BookingWindowDto>> GetBookingWindow(CancellationToken ct) =>
+      Ok(await srvSettings.GetBookingWindow(ct));
+
+    [HttpPut("booking-window")]
+    public async Task<ActionResult<BookingWindowDto>> PutBookingWindow(BookingWindowDto request, CancellationToken ct) =>
+        Ok(await srvSettings.PutBookingWindow(request, ct));
 }

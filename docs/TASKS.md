@@ -51,6 +51,15 @@ Ordem: **23 → 24 → 25 → 26**. A 23 é a maior e muda o preço que o site c
 - [x] 25 — Hóspede: endereço e rede social
 - [x] 26 — Folga ao criar e ao editar reserva
 
+### Patch 2 — reservas e login (pedido em 14/10/2026)
+Branch **`feature/patch-2`**. Ordem: **27 → 28 → 29 → 30 → 31**. A 27 e a 28 mudam o que o site aceita: publicar a API e a
+landing **juntas**. A 29 muda o login: publicar a API e o portal **juntos**.
+- [x] 27 — Diária estendida: folga contada duas vezes (bug do 19/12)
+- [x] 28 — Meses abertos para reserva
+- [x] 29 — Lembrar de mim (refresh token em cookie)
+- [x] 30 — Rede social na pré-reserva
+- [x] 31 — Texto do sinal na confirmação (só landing)
+
 ---
 
 ## Task 0 — Arrumar a casa
@@ -929,6 +938,175 @@ manual e ao **editar** uma reserva, como já faz na confirmação (task 16).
 
 ---
 
+## Task 27 — Diária estendida: folga contada duas vezes (bug do 19/12)
+
+**Objetivo:** a estendida sáb 19/12 → dom 20/12 tem que ser aceita. Hoje o 19 aparece cinza no site, embora no portal o
+domingo 20 esteja livre (Bianca 21/12 → 23/12, sem folga antes).
+
+**Por que acontece** (regras 4 e 8 da "Folga entre hóspedes" em `REGRAS_RESERVA.md`)
+- `GET /api/blocked-dates` publica, para cada reserva confirmada, a partir de `R.in − max(R.B, gA)`. Com o global
+  "check-out bloqueia a data" (`gA`) = 1, a noite **20** sai publicada. Ela é a folga da **própria estadia nova**: dá para
+  fazer check-out no 20, mas não dormir lá.
+- A regra 8 manda a estendida checar se a noite do check-out (20) está livre. Essa checagem existe para simular uma
+  "folga mínima 1" e só faz sentido quando o global é 0. Com o global em 1, a folga já está nas noites publicadas e é
+  **contada duas vezes**: na prática, a estendida passa a exigir 2 noites livres depois dela.
+- Pela regra 3 (`OccupancyRules.Conflicts`, com `Effective`), 19 → 20 não conflita com a Bianca: a área da estendida é
+  `[18, 21)`, e a Bianca entra no 21.
+- O mesmo vale do lado da véspera: com o global "check-in bloqueia a véspera" (`gB`) ≥ 1, a noite anterior já vem publicada.
+
+**O que fazer**
+1. **Teste primeiro (TDD)** em `BookingRulesValidateStayTests.cs` (casos em `REGRAS_RESERVA.md`, tabela da estendida).
+2. `BookingData` ganha `int BufferBefore = 0` e `int BufferAfter = 0` (os **globais**). `SrvReservation.GetBookingData`
+   preenche os dois com os valores do `BookingSettings`.
+3. Em `BookingRules.ValidateStay` (bloco da estendida, `Domain/BookingRules.cs:51-56`):
+   - a véspera (`checkIn − 1`) só é checada se `BufferBefore == 0`;
+   - a noite do check-out só é checada se `BufferAfter == 0`.
+4. `OccupancyRules` **não muda**. A confirmação continua exata (`Effective` + `Conflicts`).
+
+**Conceitos novos:** quando a mesma regra é aplicada em duas camadas (a lista publicada e a validação), ela pode somar
+duas vezes. O teste com o caso real (19/12) é a melhor documentação disso.
+
+**Critérios de aceite**
+- [x] `gA = 1`, reserva entrando no domingo + 1 → sáb → dom **ok** (caso 19/12).
+- [x] `gA = 0`, noite do check-out bloqueada → `BlockedNight` (comportamento de hoje).
+- [x] `gB = 1`, reserva saindo na sexta → sex → sáb **ok**; `gB = 0`, véspera bloqueada → `BlockedNight`.
+- [x] Todos os testes antigos da estendida continuam passando.
+
+**Armadilhas**
+- O site tem a mesma regra (`validateStay` em `landing/src/lib/booking.ts`) e precisa dos globais: eles saem na rota
+  pública da task 28 (`GET /api/booking-settings`). **Publicar a API e a landing juntas.**
+- Limite conhecido (fica conservador, de propósito): com o global 0, se a reserva vizinha tiver folga **própria** (`R.B`),
+  a noite publicada é a folga dela e a estendida continua recusada. O site só enxerga noites publicadas. É raro e erra
+  para o lado seguro; o admin pode criar a reserva pelo portal.
+
+---
+
+## Task 28 — Meses abertos para reserva
+
+**Objetivo:** o site só aceita reservas até um **mês-limite** ("reservas abertas até dezembro/2026"). Para abrir janeiro,
+o dono muda o limite no portal.
+
+**Por que:** evitar pré-reservas muitos meses à frente, antes de o dono definir preços, pacotes e agenda daquele período.
+
+**O que fazer** (regras na seção "Meses abertos" de `REGRAS_RESERVA.md`)
+1. `BookingSettings.BookingOpenUntil` (`DateOnly?`, `null` = sem limite). Guarda o **último dia** do mês aberto. A API
+   normaliza qualquer data recebida para o fim do mês dela (`2026-12-05` → `2026-12-31`). Migration `MesesAbertos`.
+2. Admin: `GET`/`PUT /api/admin/settings/booking-window` → `{ "openUntil": "2026-12-31" | null }`, no
+   `AdminSettingsController` + `SrvSettings`, no mesmo padrão do buffer e do schedule.
+3. Público: `GET /api/booking-settings` →
+   `{ "openUntil": "2026-12-31" | null, "bufferBeforeNights": 0, "bufferAfterNights": 1 }`. Os globais servem para a
+   task 27 e não são dado sensível.
+4. `BookingData` ganha `DateOnly? OpenUntil`, preenchido em `SrvReservation.GetBookingData`. O admin (`LoadPricingData`)
+   deixa `null`: o portal não tem limite.
+5. `StayError` novo: `MonthNotOpen(DateOnly Night)` → **422**, "As reservas para dezembro/2026 ainda não foram abertas."
+   (mês da noite, em PT-BR), no `PreReservationController.ConvertResponseToResult`.
+6. Regra no `ValidateStay`, **depois** das noites bloqueadas e do pacote parcial, **antes** do domingo:
+   - pacote exato: recusa se `pacote.CheckIn > OpenUntil`;
+   - estadia comum: recusa se a última noite (`checkOut − 1`) `> OpenUntil`. O check-out pode cair no dia 1º do mês fechado.
+
+**Conceitos novos:** configuração "singleton" lida em toda validação; normalizar a entrada no servidor em vez de confiar
+no formato que o cliente manda.
+
+**Critérios de aceite** (cenário com `OpenUntil = 2026-12-31`)
+- [x] 30/12 → 01/01 → ok.
+- [x] 31/12 → 02/01 → `MonthNotOpen` (noite 01/01).
+- [x] Pacote Ano Novo (31/12 → 03/01) → ok: o check-in é em dezembro.
+- [x] Pacote com check-in em janeiro → `MonthNotOpen`.
+- [x] `OpenUntil = null` → sem limite.
+- [x] Reserva criada pelo portal em janeiro → ok.
+- [x] `PUT` com `2027-01-15` → o `GET` devolve `2027-01-31`.
+
+**Armadilhas**
+- Depois da migration, a produção fica com `null` (sem limite). O dono configura "dezembro/2026" no portal **logo depois
+  do deploy**.
+- O site calcula a mesma coisa no calendário: publicar a API e a landing juntas.
+
+---
+
+## Task 29 — Lembrar de mim (refresh token em cookie)
+
+**Objetivo:** o dono marca "Lembrar de mim" no login e continua logado por até 30 dias no celular, sem diminuir a segurança.
+
+**Por que este desenho:** hoje o access token (60 min) fica no `localStorage` do portal. Um XSS consegue lê-lo. Um token
+de 30 dias no `localStorage` seria pior. O padrão seguro é:
+- **access token curto (15 min)**, só na memória do portal;
+- **refresh token** num cookie `HttpOnly` (o JavaScript não lê), com **rotação** e **detecção de reuso**.
+
+**O que fazer**
+1. Entidade `RefreshToken`: `Id`, `UserId`, `TokenHash` (SHA-256, **nunca** o token puro), `FamilyId`, `Persistent`,
+   `CreatedAt`, `ExpiresAt`, `RevokedAt`, `ReplacedById`. Migration `RefreshTokens`.
+2. O token é 32 bytes de `RandomNumberGenerator`, em Base64Url. No banco vai só o hash.
+3. `LoginRequest` ganha `bool RememberMe` (padrão `false`). O login devolve o mesmo `LoginResponse` e grava o cookie
+   `chale_refresh`: `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/auth`.
+   - Com "lembrar": cookie com `Expires` de 30 dias, e o token vale 30 dias.
+   - Sem "lembrar": cookie de **sessão** (some ao fechar o navegador), e o token vale no máximo 12h no servidor.
+4. `POST /api/auth/refresh`:
+   - lê o cookie, acha pelo hash e valida (não revogado, não vencido, usuário existe e não está bloqueado);
+   - **rotaciona**: revoga o atual (`RevokedAt`, `ReplacedById`) e emite um novo **da mesma família**, com o mesmo
+     `ExpiresAt` (prazo **absoluto**: a rotação não estende);
+   - **reuso**: se chegar um token já revogado, revoga a **família inteira** (alguém copiou o cookie) e responde 401;
+   - devolve o `LoginResponse` novo e grava o cookie novo.
+5. `POST /api/auth/logout`: revoga a família do cookie e apaga o cookie (204).
+6. `POST /api/admin/me/password` (`MeController`): ao trocar a senha, revoga **todos** os refresh tokens do usuário.
+7. `Jwt:ExpiresMinutes` de 60 → **15**.
+8. CORS: a política `Portal` ganha `AllowCredentials()` (necessário para o navegador mandar o cookie). O refresh e o logout
+   exigem o header `X-Requested-With: chale-portal`: força o preflight, defesa extra contra CSRF além do `SameSite`.
+9. Rate limiting: o refresh usa a política `login`.
+10. Regras puras (vencido? reuso? novo `ExpiresAt`) numa classe de domínio com testes.
+
+**Conceitos novos:** cookie `HttpOnly`/`Secure`/`SameSite`; rotação de refresh token e detecção de reuso; por que guardar
+só o hash; `AllowCredentials` no CORS (exige origens explícitas, nunca `*`).
+
+**Critérios de aceite**
+- [x] Login com `rememberMe: true` → `Set-Cookie` com `HttpOnly; Secure; SameSite=Strict; Path=/api/auth` e `Expires`.
+- [x] Login com `rememberMe: false` → cookie sem `Expires`.
+- [x] Refresh → token novo, e o anterior não funciona mais.
+- [x] Reusar o token anterior → 401, e o token novo da família também passa a dar 401.
+- [x] Logout → refresh dá 401.
+- [x] Trocar senha → refresh dá 401.
+- [x] Nenhum token aparece em log nem no banco em texto puro.
+
+**Armadilhas**
+- `gestao.chalealtodomorro.com.br` e `api.chalealtodomorro.com.br` são o mesmo **site**, por isso o `SameSite=Strict`
+  funciona. Em dev, `localhost:5174` → `localhost:5084` também (porta não muda o site).
+- O `Secure` em `http://localhost` funciona no Chrome (localhost é contexto seguro).
+- O portal precisa mandar `credentials: 'include'` **só** nas rotas `/api/auth/*`.
+- Limpeza: tokens vencidos podem ser apagados no login (simples). Não precisa de job.
+
+---
+
+## Task 30 — Rede social na pré-reserva
+
+**Objetivo:** o hóspede pode informar a rede social (ex.: `@anasouza`) na pré-reserva do site. É **opcional**.
+
+**O que fazer** (contrato: `CONTRATO_SITE.md`, `POST /api/pre-reservations`)
+1. `GuestDto` (`Dtos/PostPreReservationRequest.cs`) ganha `SocialMedia?` (máximo 150, com trim; vazio vira `null`).
+2. `SrvReservation.GetOrAddGuest`:
+   - hóspede novo: grava a rede social;
+   - hóspede existente (mesmo CPF): só preenche se estiver **vazia**. Nunca sobrescreve o que o admin cadastrou.
+
+**Critérios de aceite**
+- [x] Pré-reserva com `socialMedia` → o detalhe do hóspede no portal mostra a rede social.
+- [x] Pré-reserva sem `socialMedia` → `201`, igual a hoje.
+- [x] 151 caracteres → `400`.
+- [x] Testes de validação em `PreReservationValidationTests.cs`.
+
+**Armadilhas:** é dado pessoal (regra 7 do `CLAUDE.md`): fora de log e de qualquer rota pública de leitura. O endereço
+continua **só** no portal.
+
+---
+
+## Task 31 — Texto do sinal na confirmação (só landing)
+
+**Objetivo:** na etapa de confirmação do site (a mesma do "Li e concordo com as regras"), avisar como funciona o pagamento:
+
+> Para confirmar a reserva e garantir a data, pedimos 50% do valor como sinal. O restante pode ser pago até o dia do
+> check-in. Se preferir, o valor total pode ser parcelado em até 12x (com as taxas do cartão).
+
+Não muda nada na API. O Claude faz na landing (ver "Fora da API").
+
+---
+
 ## Fora da API (o Claude faz no portal e na landing)
 - **Portal:** tela de preços (desconto 2+, diária estendida, ajuda "2 diárias = R$ 1.290"), tela de horários, endereço e
   rede social na criação e na confirmação, folga no criar e no editar, e **datas em dd/mm/aaaa** em todas as telas. A data
@@ -936,14 +1114,31 @@ manual e ao **editar** uma reserva, como já faz na confirmação (task 16).
 - **Landing:** `booking.ts` com as regras novas (domingo, desconto, estendida, sem check-in no domingo), horários vindos de
   `GET /api/schedule` e `types/index.ts` + `docs/API.md` sincronizados com o `CONTRATO_SITE.md`.
 
+**Patch 2** (branch `feature/patch-2` nos três repositórios) — ✅ feito pelo Claude em 15/10/2026
+- **Landing:**
+  - `GET /api/booking-settings` (tipo, `useSiteData`, `BookingData` com `openUntil`, `bufferBefore` e `bufferAfter`).
+  - `validateStay` com as regras das tasks 27 e 28 (`booking.test.ts` com os mesmos casos da API).
+  - `DateRangeCalendar`: o último mês navegável passa a ser o mês **seguinte** ao limite (para mostrar o check-out do dia
+    1º e o fim do pacote de Ano Novo). As noites depois do limite ficam desabilitadas.
+  - Campo "Instagram / rede social (opcional)" no `GuestForm`, no `GuestInfo`, no payload e na mensagem do WhatsApp.
+  - Texto do sinal (task 31) numa constante em `config/houseRules.ts`, mostrado na etapa `review` do `Reservation.tsx`
+    acima do `RulesAgreement`, no painel de regras (junto da política de cancelamento) e na mensagem do WhatsApp.
+  - Bug achado: `Reservation.tsx` chama `buildWhatsAppMessage` sem o `schedule`, então a mensagem sai com os horários do mock.
+- **Portal:**
+  - "Reservas abertas até" (`input type="month"`, com opção "sem limite") em Configurações, com hooks no padrão de
+    `api/queries/calendar.ts`.
+  - Login com "Lembrar de mim". O access token sai do `localStorage` (`src/api/token.ts`) e fica **só na memória**. Ao
+    abrir o portal, `POST /api/auth/refresh` (`credentials: 'include'`, header `X-Requested-With`). No 401, tenta 1
+    refresh antes de deslogar (`client.ts`). O "Sair" chama `POST /api/auth/logout`.
+  - Rede social da pré-reserva aparece no detalhe da reserva/hóspede (o campo já existe desde a task 25).
+
 ---
 
 ## Ideias para o futuro (fora do escopo atual)
 
 - **Folga entre hóspedes**: entrou na v1 como **task 16**. A decisão tomada foi "só entre reservas" (regra 5 em
   `REGRAS_RESERVA.md`).
-- **Refresh token**: hoje o token vale 60 minutos e o portal volta para o login quando ele vence. Uma melhoria é um refresh
-  token em cookie `HttpOnly` com rotação, para o dono não precisar logar de novo no celular.
+- **Refresh token**: entrou no Patch 2 como **task 29** ("Lembrar de mim").
 - **Estorno automático no caixa** ao cancelar uma reserva já lançada. Hoje o dono decide manualmente (regra 24 de
   `REGRAS_CAIXA.md`).
 - **Anexos no caixa** (foto do comprovante ou da nota) usando o `IFileStorage` da task 10.

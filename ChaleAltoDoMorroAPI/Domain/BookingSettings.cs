@@ -15,11 +15,16 @@ public class BookingSettings
     // "Check-out bloqueia a data": noites livres DEPOIS de cada reserva.
     public int BufferAfterNights { get; set; }
 
+    // Meses abertos (task 28): ÚLTIMO dia do mês aberto para o site. null = sem limite.
+    public DateOnly? BookingOpenUntil { get; set; }
+
     // Horários (só informativos: aparecem no site e no portal, não mudam regra nenhuma).
     public TimeOnly CheckInTime { get; set; } = DefaultCheckInTime;
     public TimeOnly CheckOutTime { get; set; } = DefaultCheckOutTime;
     public TimeOnly ExtendedCheckInTime { get; set; } = DefaultExtendedCheckInTime;
     public TimeOnly ExtendedCheckOutTime { get; set; } = DefaultExtendedCheckOutTime;
+
+
 
     public static readonly TimeOnly DefaultCheckInTime = new(15, 0);
     public static readonly TimeOnly DefaultCheckOutTime = new(12, 0);

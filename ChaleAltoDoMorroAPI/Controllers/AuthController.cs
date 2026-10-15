@@ -12,12 +12,12 @@ namespace ChaleAltoDoMorroAPI.Controllers;
 [ApiController]
 [EnableCors(CorsPolicies.Portal)]
 [Route("api/auth")]
-public class AuthController(UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager, SrvToken srvToken, ILogger<AuthController> log) : ControllerBase
+public class AuthController(UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager, SrvRefreshToken srvRefreshToken, ILogger<AuthController> log) : ControllerBase
 {
 
     [HttpPost("login")]
     [EnableRateLimiting(RateLimitPolicies.Login)]
-    public async Task<ActionResult<LoginResponse>> Login(LoginRequest request)
+    public async Task<ActionResult<LoginResponse>> Login(LoginRequest request, CancellationToken ct)
     {
         var user = await userManager.FindByEmailAsync(request.Email);
         if (user == null)
@@ -43,8 +43,63 @@ public class AuthController(UserManager<IdentityUser> userManager, SignInManager
         }
 
         log.LogInformation("Login de {UserId}.", user.Id);
-        var loginResponse = srvToken.CreateToken(user);
-        return Ok(loginResponse);
+        var session = await srvRefreshToken.Start(user, request.RememberMe, ct);
+        WriteRefreshCookie(session);
+        return Ok(session.Login);
     }
 
+    // Só o portal manda esse header. Um formulário de outro site não consegue mandar header customizado
+    // sem o preflight do CORS, e o preflight barra quem não é o portal: defesa contra CSRF além do SameSite.
+    private const string PortalHeaderValue = "chale-portal";
+    private const string RefreshCookie = "chale_refresh";
+
+    [HttpPost("refresh")]
+    [EnableRateLimiting(RateLimitPolicies.Login)]
+    public async Task<ActionResult<LoginResponse>> Refresh(CancellationToken ct)
+    {
+        if (!FromPortal())
+            return Problem("Sessão expirada.", statusCode: 401);
+
+        var session = await srvRefreshToken.Rotate(Request.Cookies[RefreshCookie], ct);
+        if (session is null)
+        {
+            DeleteRefreshCookie();
+            return Problem("Sessão expirada.", statusCode: 401);
+        }
+
+        WriteRefreshCookie(session);
+        return Ok(session.Login);
+    }
+
+    [HttpPost("logout")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Logout(CancellationToken ct)
+    {
+        if (!FromPortal())
+            return Problem("Sessão expirada.", statusCode: 401);
+
+        await srvRefreshToken.Revoke(Request.Cookies[RefreshCookie], ct);
+        DeleteRefreshCookie();
+        return NoContent();
+    }
+
+    private bool FromPortal() => Request.Headers.XRequestedWith == PortalHeaderValue;
+
+    private void WriteRefreshCookie(RefreshResult session) =>
+        Response.Cookies.Append(RefreshCookie, session.Token, RefreshCookieOptions(session.Persistent ? session.ExpiresAt : null));
+
+    private void DeleteRefreshCookie() =>
+        Response.Cookies.Delete(RefreshCookie, RefreshCookieOptions(expires: null));
+
+    // HttpOnly: o JavaScript não lê. Secure: só HTTPS (localhost conta como seguro).
+    // SameSite=Strict: o navegador só manda o cookie em pedidos do MESMO site (gestao. e api. são o mesmo site).
+    // Path=/api/auth: o cookie nem viaja nas outras rotas. Sem Expires = cookie de sessão (some ao fechar o navegador).
+    private static CookieOptions RefreshCookieOptions(DateTimeOffset? expires) => new()
+    {
+        HttpOnly = true,
+        Secure = true,
+        SameSite = SameSiteMode.Strict,
+        Path = "/api/auth",
+        Expires = expires,
+    };
 }

@@ -60,6 +60,20 @@ public class PreReservationValidationTests
         Assert.Equal(["Cpf"], InvalidFields(guest));
     }
 
+    // Task 30: rede social opcional, até 150 caracteres.
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("@anasouza", true)]
+    [InlineData(150, true)]
+    [InlineData(151, false)]
+    public void Rede_social_eh_opcional_com_ate_150_caracteres(object? socialMedia, bool valid)
+    {
+        var value = socialMedia is int length ? new string('a', length) : (string?)socialMedia;
+        var guest = new GuestDto { Name = "Ana Souza", Cpf = "52998224725", Phone = "51989098631", SocialMedia = value };
+
+        Assert.Equal(valid ? [] : ["SocialMedia"], InvalidFields(guest));
+    }
+
     [Theory]
     [InlineData("Bruno Lima", null)]
     [InlineData("Bruno Lima", "11144477735")]

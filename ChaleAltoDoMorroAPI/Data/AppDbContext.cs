@@ -20,6 +20,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<Guest> Guests => Set<Guest>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
     public DbSet<BookingSettings> BookingSettings => Set<BookingSettings>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

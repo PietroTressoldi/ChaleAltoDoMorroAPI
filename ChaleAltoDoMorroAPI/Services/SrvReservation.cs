@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ChaleAltoDoMorroAPI.Services;
 
-public class SrvReservation(AppDbContext db, SrvAvailability srvAvailability, IClock brazilClock, TimeProvider timeProvider, ILogger<SrvReservation> log)
+public class SrvReservation(AppDbContext db, SrvAvailability srvAvailability, SrvSettings srvSettings, IClock brazilClock, TimeProvider timeProvider, ILogger<SrvReservation> log)
 {
 
     public async Task<PreReservationResponse> CreatePreReservation(PostPreReservationRequest request, CancellationToken ct = default)
@@ -38,7 +38,8 @@ public class SrvReservation(AppDbContext db, SrvAvailability srvAvailability, IC
         if (requestPrices is null)
             return new PricingNotConfigured();
 
-        var mainGuest = await GetOrAddGuest(request.Guest.Name, request.Guest.Cpf, request.Guest.Phone, request.Guest.Email, ct);
+        var mainGuest = await GetOrAddGuest(request.Guest.Name, request.Guest.Cpf, request.Guest.Phone, request.Guest.Email,
+            request.Guest.SocialMedia, ct);
         Guest? secondGuest = null;
 
         var requestSecondGuest = request.SecondGuest;
@@ -47,7 +48,7 @@ public class SrvReservation(AppDbContext db, SrvAvailability srvAvailability, IC
             // Mesmo CPF dos dois hóspedes: reaproveita o cadastro (o hóspede 1 pode ainda não estar salvo no banco).
             secondGuest = requestSecondGuest.Cpf != null && requestSecondGuest.Cpf == mainGuest.Cpf
                 ? mainGuest
-                : await GetOrAddGuest(requestSecondGuest.Name, requestSecondGuest.Cpf, phone: null, email: null, ct);
+                : await GetOrAddGuest(requestSecondGuest.Name, requestSecondGuest.Cpf, phone: null, email: null, socialMedia: null, ct);
         }
 
         var reservationId = await AddReservation(requestPrices, validateRequestPackageResponse.package, kit, mainGuest, secondGuest, request, ct);
@@ -116,15 +117,25 @@ public class SrvReservation(AppDbContext db, SrvAvailability srvAvailability, IC
 
     // CPF já cadastrado: devolve o cadastro existente SEM alterar (segurança: a rota é pública).
     // Sem CPF (hóspede 2 opcional): não há como deduplicar, então cria um cadastro novo.
-    private async Task<Guest> GetOrAddGuest(string name, string? cpf, string? phone, string? email, CancellationToken ct = default)
+    private async Task<Guest> GetOrAddGuest(string name, string? cpf, string? phone, string? email, string? socialMedia,
+        CancellationToken ct = default)
     {
+        // Vazio ou só espaços = não informou (task 30).
+        socialMedia = string.IsNullOrWhiteSpace(socialMedia) ? null : socialMedia.Trim();
+
         if (cpf != null)
         {
             // Com tracking: o EF precisa saber que este hóspede já existe, senão tenta inserir de novo.
             var guestFromDb = await db.Guests.FirstOrDefaultAsync(g => g.Cpf == cpf, ct);
 
             if (guestFromDb != null)
+            {
+                // Só preenche o que está vazio: nunca sobrescreve o que o admin cadastrou.
+                if (socialMedia != null && string.IsNullOrWhiteSpace(guestFromDb.SocialMedia))
+                    guestFromDb.SocialMedia = socialMedia;
+
                 return guestFromDb;
+            }
         }
 
         Guest addGuest = new()
@@ -132,7 +143,8 @@ public class SrvReservation(AppDbContext db, SrvAvailability srvAvailability, IC
             Cpf = cpf,
             Name = name.Trim(),
             PhoneNumber = phone,
-            Email = email
+            Email = email,
+            SocialMedia = socialMedia
         };
 
         await db.Guests.AddAsync(addGuest, ct);
@@ -155,8 +167,12 @@ public class SrvReservation(AppDbContext db, SrvAvailability srvAvailability, IC
         var weekendRule = pricingRules.FirstOrDefault(p => p.Kind == PricingKind.Weekend);
         var extendedRule = pricingRules.FirstOrDefault(p => p.Kind == PricingKind.Extended);
 
+        var settings = await srvSettings.GetBookingSettings(ct);
+
         return new BookingData(weekdayRule?.PricePerNight, weekendRule?.PricePerNight, weekendRule?.MinNights, blockedNights, packageInfo,
-            weekdayRule?.LongStayPricePerNight, extendedRule?.PricePerNight);
+            weekdayRule?.LongStayPricePerNight, extendedRule?.PricePerNight,
+            BufferBefore: settings.BufferBeforeNights, BufferAfter: settings.BufferAfterNights,
+            OpenUntil: settings.BookingOpenUntil);
     }
 
     private static (PreReservationResponse? ErrorResponse, PackageInfo? package) ValidateRequestPackage(PostPreReservationRequest request, BookingData bookingData)
