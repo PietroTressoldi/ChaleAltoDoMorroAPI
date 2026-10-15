@@ -72,6 +72,10 @@ public sealed class GuestDto : IValidatableObject
     [StringLength(1000, ErrorMessage = "Observações com no máximo 1000 caracteres.")]
     public string? Notes { get; init; }
 
+    // Opcional (task 30), ex.: "@anasouza". Dado pessoal: só aparece no portal, nunca em log.
+    [StringLength(150, ErrorMessage = "Rede social com no máximo 150 caracteres.")]
+    public string? SocialMedia { get; init; }
+
     // Regra que atributo não expressa: mínimo de 2 caracteres SEM contar espaços nas pontas.
     // Só roda depois que os atributos passaram (o Name já não é nulo aqui).
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)

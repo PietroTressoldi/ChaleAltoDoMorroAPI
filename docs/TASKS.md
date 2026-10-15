@@ -57,8 +57,8 @@ landing **juntas**. A 29 muda o login: publicar a API e o portal **juntos**.
 - [x] 27 — Diária estendida: folga contada duas vezes (bug do 19/12)
 - [x] 28 — Meses abertos para reserva
 - [x] 29 — Lembrar de mim (refresh token em cookie)
-- [ ] 30 — Rede social na pré-reserva
-- [ ] 31 — Texto do sinal na confirmação (só landing)
+- [x] 30 — Rede social na pré-reserva
+- [x] 31 — Texto do sinal na confirmação (só landing)
 
 ---
 
@@ -1086,10 +1086,10 @@ só o hash; `AllowCredentials` no CORS (exige origens explícitas, nunca `*`).
    - hóspede existente (mesmo CPF): só preenche se estiver **vazia**. Nunca sobrescreve o que o admin cadastrou.
 
 **Critérios de aceite**
-- [ ] Pré-reserva com `socialMedia` → o detalhe do hóspede no portal mostra a rede social.
-- [ ] Pré-reserva sem `socialMedia` → `201`, igual a hoje.
-- [ ] 151 caracteres → `400`.
-- [ ] Testes de validação em `PreReservationValidationTests.cs`.
+- [x] Pré-reserva com `socialMedia` → o detalhe do hóspede no portal mostra a rede social.
+- [x] Pré-reserva sem `socialMedia` → `201`, igual a hoje.
+- [x] 151 caracteres → `400`.
+- [x] Testes de validação em `PreReservationValidationTests.cs`.
 
 **Armadilhas:** é dado pessoal (regra 7 do `CLAUDE.md`): fora de log e de qualquer rota pública de leitura. O endereço
 continua **só** no portal.
@@ -1114,7 +1114,7 @@ Não muda nada na API. O Claude faz na landing (ver "Fora da API").
 - **Landing:** `booking.ts` com as regras novas (domingo, desconto, estendida, sem check-in no domingo), horários vindos de
   `GET /api/schedule` e `types/index.ts` + `docs/API.md` sincronizados com o `CONTRATO_SITE.md`.
 
-**Patch 2** (branch `feature/patch-2` nos três repositórios)
+**Patch 2** (branch `feature/patch-2` nos três repositórios) — ✅ feito pelo Claude em 15/10/2026
 - **Landing:**
   - `GET /api/booking-settings` (tipo, `useSiteData`, `BookingData` com `openUntil`, `bufferBefore` e `bufferAfter`).
   - `validateStay` com as regras das tasks 27 e 28 (`booking.test.ts` com os mesmos casos da API).
